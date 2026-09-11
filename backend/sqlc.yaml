@@ -1,0 +1,26 @@
+version: "2"
+sql:
+  - engine: postgresql
+    # sqlc reads goose migrations directly and ignores the Down sections.
+    schema: db/migrations
+    queries: db/queries
+    gen:
+      go:
+        package: gen
+        out: db/gen
+        sql_package: pgx/v5
+        # Nullable columns become *string, *time.Time etc. instead of pgtype wrappers.
+        emit_pointers_for_null_types: true
+        # Adds Valid() to enums, e.g. for checking a level read from CSV or a form.
+        emit_enum_valid_method: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true

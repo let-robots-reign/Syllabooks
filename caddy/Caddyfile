@@ -1,0 +1,15 @@
+# Development proxy: serves the Vite dev server and the Go API from one origin,
+# the same shape as production, where the Go binary serves both.
+#
+# Plain HTTP on :80. Automatic HTTPS stays off because the site address has no
+# hostname; localhost counts as a secure context for the camera API anyway.
+:80 {
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	# Everything else goes to Vite, including the HMR websocket.
+	handle {
+		reverse_proxy frontend:5173
+	}
+}
