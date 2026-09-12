@@ -3,7 +3,8 @@ Web app for running a book club in a state school
 
 ## Development
 
-Needs Docker and Go 1.27 (Go runs sqlc and goose on the host).
+Needs Docker and Go 1.27 (Go runs sqlc and goose on the host), and pnpm for
+`make build`.
 
 ```sh
 cp .env.example .env
@@ -82,3 +83,26 @@ write:
 ```sh
 docker compose exec backend go test ./...
 ```
+
+### Frontend
+
+Design tokens (palette, level colours, type scale, spacing) are CSS custom
+properties in `frontend/src/tokens.scss`, taken from the Claude Design
+screens. The primitives in `frontend/src/ui/` (`Button`, `TextField`, `Card`,
+`Eyebrow`, `Wordmark`, `Link`) are built on them; screens use both rather than
+new hex values. Fonts are bundled from `@fontsource`, not loaded from Google.
+
+## Production build
+
+```sh
+make build
+DATABASE_URL='postgres://syllabooks:syllabooks@localhost:5432/syllabooks?sslmode=disable' ./bin/syllabooks
+```
+
+`make build` builds the frontend, copies it into `backend/cmd/api/dist` and
+compiles it into the binary with `go:embed`, so one file serves both the API
+and the app (the example above borrows the compose database; the app is then
+at http://localhost:8080). Paths under `/api/` go to the handlers; any other
+path gets a file from the bundle or, failing that, `index.html`, so client-side
+routes such as `/profile` survive a reload. In development
+`backend/cmd/api/dist` holds only `.gitkeep`, and Caddy sends pages to Vite.

@@ -1,0 +1,35 @@
+.shelf {
+  padding: var(--space-6) 0 var(--space-10);
+}
+
+.heading {
+  margin-bottom: var(--space-4);
+  padding-top: 10px;
+  border-top: 1px solid var(--color-ink);
+  font-family: var(--font-serif);
+  font-size: 15px;
+}
+
+// The same hatching stands in for a missing cover.
+.hatch {
+  height: 108px;
+  border: 1px solid var(--color-border);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-sand) 0 8px,
+    var(--color-hatch) 8px 16px
+  );
+}
+
+.title {
+  margin-top: 18px;
+  font-family: var(--font-serif);
+  font-size: var(--text-heading);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.text {
+  margin-top: var(--space-2);
+  color: var(--color-ink-soft);
+}

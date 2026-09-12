@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 
@@ -15,6 +16,9 @@ type Server struct {
 	Yandex, VK *Provider
 	// SecureCookies marks cookies Secure; true when the app is served over HTTPS.
 	SecureCookies bool
+	// Frontend is the built single-page app, served for every path outside
+	// /api/. Without an index.html only the API is served.
+	Frontend fs.FS
 }
 
 func (s *Server) Routes() http.Handler {
@@ -32,6 +36,10 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/me", s.requireUser(s.me))
 
 	mux.HandleFunc("POST /api/admin/users/{id}/reset-password", s.requireAdmin(s.resetPassword))
+
+	// An unknown API path is a plain 404, never the app's index.html.
+	mux.HandleFunc("/api/", http.NotFound)
+	mux.HandleFunc("/", s.frontend)
 	return mux
 }
 

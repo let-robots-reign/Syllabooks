@@ -1,4 +1,4 @@
-# Development image. compose.yaml bind-mounts the source over /app; this image
+# Development image. docker-compose.yaml bind-mounts the source over /app; this image
 # only provides the toolchain and a warm module cache.
 FROM golang:1.27
 

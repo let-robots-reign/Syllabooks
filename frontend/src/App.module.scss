@@ -1,7 +1,38 @@
-.header {
-  height: 40px;
+// The ground behind the column: cream, or sand on the sign-in screens.
+.ground {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-paper);
+}
+
+.sand {
+  background: var(--color-sand);
+}
+
+// Paint the body too, so a phone's overscroll shows the same ground.
+:global(body):has(.sand) {
+  background: var(--color-sand);
+}
+
+// Student screens are designed for a phone only (PRD §12). A wider viewport
+// gets the same layout in a centred column, the ground either side.
+.column {
+  max-width: 480px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+
+  @media (min-width: 481px) {
+    border-inline: 1px solid var(--color-border);
+  }
 }
 
 .main {
-  padding: 16px;
+  padding: 0 var(--gutter);
+}
+
+.status {
+  padding-top: var(--space-10);
+  text-align: center;
+  color: var(--color-muted);
 }

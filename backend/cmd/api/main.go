@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +21,7 @@ func main() {
 }
 
 func run() error {
-	// Configuration comes from environment variables: compose.yaml sets them
+	// Configuration comes from environment variables: docker-compose.yaml sets them
 	// in development, the service manager sets them in production.
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -53,6 +54,14 @@ func run() error {
 		log.Print("VK_CLIENT_ID is not set: VK login is disabled")
 	}
 
+	frontend, err := fs.Sub(dist, "dist")
+	if err != nil {
+		return fmt.Errorf("open embedded frontend: %w", err)
+	}
+	if _, err := fs.Stat(frontend, "index.html"); err != nil {
+		log.Print("no frontend built into this binary (see make build): serving the API only")
+	}
+
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, databaseURL)
 	if err != nil {
@@ -68,6 +77,7 @@ func run() error {
 		Yandex:        yandex,
 		VK:            vk,
 		SecureCookies: strings.HasPrefix(publicURL, "https://"),
+		Frontend:      frontend,
 	}
 	log.Printf("listening on %s", addr)
 	return http.ListenAndServe(addr, srv.Routes())

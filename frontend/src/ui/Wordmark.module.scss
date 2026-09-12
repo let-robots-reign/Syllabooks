@@ -1,0 +1,44 @@
+// Proportions are the design's, in em so the mark scales with font-size.
+
+.wordmark {
+  display: inline-block;
+  position: relative;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  line-height: 1.136;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  color: var(--color-ink);
+}
+
+.spine {
+  display: inline-block;
+  position: relative;
+  width: 0.375em;
+  vertical-align: top;
+  border-radius: 1px;
+}
+
+.green {
+  top: -0.28em;
+  height: 1.44em;
+  margin: 0 0.04em 0 0.06em;
+  background: var(--color-spine);
+}
+
+.brick {
+  top: -0.12em;
+  height: 1.28em;
+  margin: 0 0.07em 0 0;
+  background: var(--color-brick);
+}
+
+.shelf {
+  position: absolute;
+  top: 1.16em;
+  left: -0.16em;
+  right: -0.16em;
+  height: 2px;
+  background: var(--color-ink);
+  border-radius: 1px;
+}

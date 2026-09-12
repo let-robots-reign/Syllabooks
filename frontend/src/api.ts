@@ -14,6 +14,9 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+// The signed-in user, from GET /api/me.
+export type Me = { id: string; display_name: string; is_admin: boolean };
+
 export class ApiError extends Error {
   status: number;
 

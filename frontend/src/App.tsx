@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   api,
   ApiError,
@@ -6,18 +6,22 @@ import {
   consumeOAuthRedirect,
   loadToken,
   saveToken,
+  type Me,
 } from "./api.ts";
 import styles from "./App.module.scss";
+import { Home } from "./Home.tsx";
 import { Login } from "./Login.tsx";
+import { NotFound } from "./NotFound.tsx";
+import { Privacy } from "./Privacy.tsx";
+import { Profile } from "./Profile.tsx";
+import { navigate, usePath } from "./router.ts";
+import { cx } from "./ui/cx.ts";
 
 // Runs once, before the first render, so the token doesn't linger in the URL.
 const oauthError = consumeOAuthRedirect();
 
-type Me = { id: string; display_name: string; is_admin: boolean };
-
-// A bare signed-in / signed-out switch, enough to test auth. Routing and the
-// app shell come in session 3.
 function App() {
+  const path = usePath();
   const [token, setToken] = useState(loadToken);
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState(oauthError);
@@ -53,26 +57,42 @@ function App() {
     clearToken();
     setMe(null);
     setToken(null);
+    navigate("/", { replace: true });
+  }
+
+  // The sign-in screens stand on sand, as in the design; the rest on cream.
+  let screen: ReactNode;
+  let sand = false;
+  if (path === "/privacy") {
+    screen = <Privacy />;
+  } else if (!token) {
+    screen = <Login onSignedIn={signIn} initialError={error} />;
+    sand = true;
+  } else if (!me) {
+    screen = <p className={styles.status}>{error ?? "Загрузка…"}</p>;
+  } else {
+    screen = route(path, me, signOut);
   }
 
   return (
-    <>
-      <header className={styles.header}>Syllabooks</header>
-      <main className={styles.main}>
-        {!token ? (
-          <Login onSignedIn={signIn} initialError={error} />
-        ) : me ? (
-          <>
-            <p>Привет, {me.display_name}!</p>
-            {me.is_admin && <p>У тебя права администратора.</p>}
-            <button onClick={signOut}>Выйти</button>
-          </>
-        ) : (
-          <p>{error ?? "Загрузка…"}</p>
-        )}
-      </main>
-    </>
+    <div className={cx(styles.ground, sand && styles.sand)}>
+      <div className={styles.column}>
+        <main className={styles.main}>{screen}</main>
+      </div>
+    </div>
   );
+}
+
+// route picks the screen for a signed-in user's path.
+function route(path: string, me: Me, signOut: () => void): ReactNode {
+  switch (path) {
+    case "/":
+      return <Home me={me} />;
+    case "/profile":
+      return <Profile me={me} onSignOut={signOut} />;
+    default:
+      return <NotFound />;
+  }
 }
 
 export default App;

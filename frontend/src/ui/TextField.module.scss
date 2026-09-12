@@ -1,0 +1,85 @@
+@use "./type";
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  @include type.eyebrow;
+}
+
+// Out of sight, still read aloud.
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--field-height);
+  padding: 0 18px;
+  background: var(--color-paper);
+  border: var(--control-border) solid var(--color-ink);
+
+  &:focus-within {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}
+
+.invalid {
+  border-color: var(--color-brick);
+}
+
+// At least 16px, or iOS zooms the page when the field takes focus.
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: var(--text-title);
+  caret-color: var(--color-brick);
+
+  &::placeholder {
+    color: var(--color-muted);
+  }
+}
+
+.code {
+  font-family: var(--font-brand);
+  font-size: 26px;
+  letter-spacing: 0.22em;
+
+  &[type="password"] {
+    font-size: 24px;
+    letter-spacing: 0.3em;
+  }
+}
+
+.hint,
+.error {
+  font-size: var(--text-hint);
+  line-height: 1.5;
+}
+
+.hint {
+  color: var(--color-muted);
+}
+
+.error {
+  color: var(--color-brick);
+}

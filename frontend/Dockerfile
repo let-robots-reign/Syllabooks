@@ -1,4 +1,4 @@
-# Development image. compose.yaml bind-mounts the source over /app and keeps
+# Development image. docker-compose.yaml bind-mounts the source over /app and keeps
 # node_modules in a container volume, so host and container installs never mix.
 FROM node:24-slim
 

@@ -1,0 +1,27 @@
+// Type for screens that are a heading and a few lines: profile, not found.
+
+.title {
+  margin-top: 18px;
+  font-family: var(--font-serif);
+  font-size: var(--text-page);
+  font-weight: 500;
+  line-height: 1.14;
+  text-wrap: pretty;
+}
+
+.meta {
+  margin-top: var(--space-1);
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.lead {
+  margin-top: var(--space-3);
+  font-family: var(--font-serif);
+  font-size: var(--text-prose);
+  line-height: 1.6;
+}
+
+.actions {
+  margin-top: var(--space-6);
+}

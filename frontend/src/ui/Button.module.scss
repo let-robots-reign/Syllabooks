@@ -1,0 +1,56 @@
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-4);
+  border: var(--control-border) solid transparent;
+  border-radius: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-action);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.primary {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.secondary {
+  background: transparent;
+  border-color: var(--color-ink);
+  color: var(--color-ink);
+}
+
+.brand {
+  background: var(--color-spine);
+  color: var(--color-paper);
+}
+
+.quiet {
+  background: transparent;
+  color: var(--color-ink-soft);
+  font-family: var(--font-sans);
+  font-size: var(--text-prose);
+  font-weight: 400;
+}
+
+.compact {
+  min-height: var(--control-height-compact);
+  font-size: 16px;
+}

@@ -1,0 +1,79 @@
+// Design tokens, extracted from the Claude Design screens ("Syllabooks
+// Screens"). Screens style themselves with these custom properties; a literal
+// is for one-off geometry only.
+
+:root {
+  // Brand, from the wordmark (PRD §11). Chrome only: never a level.
+  --color-spine: #1f4032;
+  --color-brick: #a33b28;
+  --color-spine-on-dark: #2f6b50;
+  --color-brick-on-dark: #c4553c;
+
+  // Chrome stays cream and espresso, so the level colours carry the colour.
+  --color-ink: #2e2a26;
+  --color-ink-soft: #5b544c; // secondary text
+  --color-muted: #8c8377; // meta, eyebrows, placeholders
+  --color-paper: #f7f2e7; // the page
+  --color-sand: #f2eada; // surfaces: cards, keys, sheets
+  --color-sand-deep: #e4dac4; // chips on sand
+  --color-hatch: #ede4d1; // second stripe of the "no cover" hatching
+  --color-field: #fffdf8; // admin form fields
+  --color-rule: #e3d9c4; // hairlines between rows
+  --color-border: #ded5c2; // edges of covers, bars, keys
+  --color-border-strong: #c9bfa8; // edges of cards and chips
+  --color-link-rule: #dbb6a9;
+
+  // Levels (PRD §6), brighter and more saturated than the brand. Each has a
+  // bright colour for spines and bars, an ink for its word, and a tint for a
+  // selected background. A level colour never appears without its word or
+  // its bars (one, two or three filled).
+  --level-green: #1e9e5a;
+  --level-green-ink: #146b3f;
+  --level-green-tint: #e4f0e7;
+  --level-yellow: #e6a612;
+  --level-yellow-ink: #8a5a06;
+  --level-yellow-tint: #f8eed6;
+  --level-red: #e24b2c;
+  --level-red-ink: #b03017;
+  --level-red-tint: #fae4de;
+  --level-off: var(--color-border); // an unfilled bar
+
+  // Type. Zilla Slab has no Cyrillic, so it sets only what is in English or
+  // Latin: the wordmark, book titles, codes. Russian headings, buttons and
+  // numbers are Bitter; running UI text is IBM Plex Sans.
+  --font-brand: "Zilla Slab", Georgia, serif;
+  --font-serif: "Bitter", Georgia, serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+
+  --text-eyebrow: 10px; // uppercase labels over sections and fields
+  --text-meta: 11.5px; // authors, dates, counts
+  --text-hint: 12.5px; // hints and secondary copy
+  --text-ui: 13.5px; // body UI text
+  --text-prose: 15.5px; // Bitter paragraphs
+  --text-title: 17px; // screen titles
+  --text-action: 18px; // buttons
+  --text-heading: 21px; // section and state headings
+  --text-page: 27px; // page headings
+  --text-display: 58px; // the class counter
+  --text-book: 16.5px; // a title on a shelf card
+  --text-book-hero: 29px; // a title on its own page
+
+  --tracking-eyebrow: 0.14em;
+
+  // Space.
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --gutter: var(--space-5); // page edge on a phone
+
+  // Controls: square corners, 1.5px ink edges.
+  --control-height: 56px;
+  --control-height-compact: 52px;
+  --field-height: 60px;
+  --control-border: 1.5px;
+}

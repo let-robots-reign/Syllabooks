@@ -1,0 +1,11 @@
+// The small uppercase label over a section or a field: "Формуляр",
+// "ISBN книги".
+@mixin eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--text-eyebrow);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
