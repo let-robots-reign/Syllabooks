@@ -29,6 +29,11 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: *database-url
+      # The address the browser uses; OAuth redirect URIs are built from it.
+      PUBLIC_URL: http://localhost:${HTTP_PORT:-8000}
+      YANDEX_CLIENT_ID: ${YANDEX_CLIENT_ID:-}
+      YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET:-}
+      VK_CLIENT_ID: ${VK_CLIENT_ID:-}
       # Lets `docker compose exec backend go tool goose <command>` run without flags.
       GOOSE_DRIVER: postgres
       GOOSE_DBSTRING: *database-url

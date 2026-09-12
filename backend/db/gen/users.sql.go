@@ -7,6 +7,8 @@ package gen
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const createCodeUser = `-- name: CreateCodeUser :one
@@ -24,6 +26,100 @@ type CreateCodeUserParams struct {
 // password stays NULL until the student sets one.
 func (q *Queries) CreateCodeUser(ctx context.Context, arg CreateCodeUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, createCodeUser, arg.DisplayName, arg.Code)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.OauthProvider,
+		&i.OauthSubject,
+		&i.DisplayName,
+		&i.Code,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Status,
+		&i.IsAdmin,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByCode = `-- name: GetUserByCode :one
+SELECT id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at FROM users WHERE code = $1::text
+`
+
+// The caller uppercases the code, which makes login case-insensitive.
+func (q *Queries) GetUserByCode(ctx context.Context, code string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByCode, code)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.OauthProvider,
+		&i.OauthSubject,
+		&i.DisplayName,
+		&i.Code,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Status,
+		&i.IsAdmin,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const resetPassword = `-- name: ResetPassword :execrows
+UPDATE users SET password_hash = NULL
+WHERE id = $1 AND code IS NOT NULL
+`
+
+// The teacher's reset. The student's next code entry lands in the "set a
+// password" branch. Only code users have a password, so 0 rows means there
+// is no such code user.
+func (q *Queries) ResetPassword(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, resetPassword, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setPasswordIfUnset = `-- name: SetPasswordIfUnset :execrows
+UPDATE users SET password_hash = $1::text
+WHERE id = $2 AND password_hash IS NULL
+`
+
+type SetPasswordIfUnsetParams struct {
+	PasswordHash string
+	ID           uuid.UUID
+}
+
+// First login of a code user, or the first after a reset. The IS NULL check
+// stops two devices racing to set a password from overwriting each other:
+// the loser updates 0 rows.
+func (q *Queries) SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnsetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setPasswordIfUnset, arg.PasswordHash, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const upsertOAuthUser = `-- name: UpsertOAuthUser :one
+INSERT INTO users (oauth_provider, oauth_subject, display_name)
+VALUES ($1::text, $2::text, $3)
+ON CONFLICT (oauth_provider, oauth_subject) DO UPDATE SET oauth_provider = excluded.oauth_provider
+RETURNING id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at
+`
+
+type UpsertOAuthUserParams struct {
+	OauthProvider string
+	OauthSubject  string
+	DisplayName   string
+}
+
+// Finds or creates the user for an OAuth identity. A repeat login changes
+// nothing, because display_name belongs to the teacher once the row exists;
+// the no-op SET is only there so RETURNING yields the existing row.
+func (q *Queries) UpsertOAuthUser(ctx context.Context, arg UpsertOAuthUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, upsertOAuthUser, arg.OauthProvider, arg.OauthSubject, arg.DisplayName)
 	var i User
 	err := row.Scan(
 		&i.ID,

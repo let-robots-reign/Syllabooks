@@ -1,0 +1,31 @@
+// Just enough layout to test with; the design system arrives in session 3.
+
+.login {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.button {
+  padding: 10px;
+  text-align: center;
+}
+
+.error {
+  margin: 0;
+  color: #a33b28;
+}

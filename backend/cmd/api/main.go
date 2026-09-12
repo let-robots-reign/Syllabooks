@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"syllabooks/internal/handlers"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,6 +30,28 @@ func run() error {
 	if addr == "" {
 		addr = ":8080"
 	}
+	// The address the browser uses, e.g. https://syllabooks.ru. OAuth redirect
+	// URIs are built from it.
+	publicURL := strings.TrimSuffix(os.Getenv("PUBLIC_URL"), "/")
+
+	var yandex, vk *handlers.Provider
+	if clientID := os.Getenv("YANDEX_CLIENT_ID"); clientID != "" {
+		clientSecret := os.Getenv("YANDEX_CLIENT_SECRET")
+		if clientSecret == "" || publicURL == "" {
+			return errors.New("YANDEX_CLIENT_ID is set, so YANDEX_CLIENT_SECRET and PUBLIC_URL must be too")
+		}
+		yandex = handlers.NewYandex(clientID, clientSecret, publicURL+"/api/auth/yandex/callback")
+	} else {
+		log.Print("YANDEX_CLIENT_ID is not set: Yandex login is disabled")
+	}
+	if clientID := os.Getenv("VK_CLIENT_ID"); clientID != "" {
+		if publicURL == "" {
+			return errors.New("VK_CLIENT_ID is set, so PUBLIC_URL must be too")
+		}
+		vk = handlers.NewVK(clientID, publicURL+"/api/auth/vk/callback")
+	} else {
+		log.Print("VK_CLIENT_ID is not set: VK login is disabled")
+	}
 
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, databaseURL)
@@ -40,17 +63,12 @@ func run() error {
 		return fmt.Errorf("connect to database: %w", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		if err := pool.Ping(r.Context()); err != nil {
-			log.Printf("health: %v", err)
-			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		fmt.Fprintln(w, "ok")
-	})
-	mux.HandleFunc("/api/books", handlers.BooksHandler)
-
+	srv := &handlers.Server{
+		Pool:          pool,
+		Yandex:        yandex,
+		VK:            vk,
+		SecureCookies: strings.HasPrefix(publicURL, "https://"),
+	}
 	log.Printf("listening on %s", addr)
-	return http.ListenAndServe(addr, mux)
+	return http.ListenAndServe(addr, srv.Routes())
 }
