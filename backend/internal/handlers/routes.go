@@ -27,9 +27,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/books", BooksHandler)
 
 	mux.HandleFunc("GET /api/auth/yandex", s.oauthStart(s.Yandex))
-	mux.HandleFunc("GET /api/auth/yandex/callback", s.oauthCallback(s.Yandex))
+	mux.HandleFunc("GET /api/auth/callback/yandex", s.oauthCallback(s.Yandex))
 	mux.HandleFunc("GET /api/auth/vk", s.oauthStart(s.VK))
-	mux.HandleFunc("GET /api/auth/vk/callback", s.oauthCallback(s.VK))
+	mux.HandleFunc("GET /api/auth/callback/vk", s.oauthCallback(s.VK))
 	mux.HandleFunc("POST /api/auth/code/check", s.codeCheck)
 	mux.HandleFunc("POST /api/auth/code/login", s.codeLogin)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)

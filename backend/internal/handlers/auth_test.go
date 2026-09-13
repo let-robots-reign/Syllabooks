@@ -216,11 +216,11 @@ func fakeProviders(t *testing.T) (yandex, vk *Provider) {
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	yandex = NewYandex("client", "secret", "http://localhost/api/auth/yandex/callback")
+	yandex = NewYandex("client", "secret", "http://localhost/api/auth/callback/yandex")
 	yandex.OAuth.Endpoint.AuthURL = srv.URL + "/yandex/authorize"
 	yandex.OAuth.Endpoint.TokenURL = srv.URL + "/yandex/token"
 	yandex.ProfileURL = srv.URL + "/yandex/info"
-	vk = NewVK("client", "http://localhost/api/auth/vk/callback")
+	vk = NewVK("client", "http://localhost/api/auth/callback/vk")
 	vk.OAuth.Endpoint.AuthURL = srv.URL + "/vk/authorize"
 	vk.OAuth.Endpoint.TokenURL = srv.URL + "/vk/token"
 	vk.ProfileURL = srv.URL + "/vk/user_info"
@@ -369,7 +369,8 @@ func (e *testEnv) oauthLogin(t *testing.T, p *Provider, tamper func(url.Values))
 	if tamper != nil {
 		tamper(query)
 	}
-	callback := e.redirect(t, e.srv.URL+"/api/auth/"+p.Name+"/callback?"+query.Encode(), start.Cookies())
+	callbackPath := "/api/auth/callback/" + p.Name
+	callback := e.redirect(t, e.srv.URL+callbackPath+"?"+query.Encode(), start.Cookies())
 	return callback.Header.Get("Location")
 }
 

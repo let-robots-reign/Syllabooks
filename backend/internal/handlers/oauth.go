@@ -21,7 +21,7 @@ import (
 
 // OAuth login (PRD §8), shared by Yandex and VK ID. The browser goes to
 // /api/auth/{provider}, which sends it on to the provider. The provider sends
-// it back to /api/auth/{provider}/callback, which signs the user in and hands
+// it back to its registered callback route, which signs the user in and hands
 // the session token to the frontend in the fragment of /auth/callback#token=….
 // A fragment never reaches a server log or a Referer header, and the frontend
 // strips it from the address bar straight away.

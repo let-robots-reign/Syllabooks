@@ -32,8 +32,8 @@ The backend reads only its environment:
 | `DATABASE_URL` | —       | Required. Compose builds it from `POSTGRES_*`. |
 | `LISTEN_ADDR`  | `:8080` |                                         |
 | `PUBLIC_URL`   | —       | The address the browser uses, e.g. `https://syllabooks.ru`. OAuth redirect URIs are built from it; `https://` also makes cookies Secure. Compose sets `http://localhost:8000`. |
-| `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET` | — | Yandex OAuth app. Unset disables Yandex login. Redirect URI to register: `$PUBLIC_URL/api/auth/yandex/callback`. |
-| `VK_CLIENT_ID` | — | VK ID app. Unset disables VK login. No secret: the code exchange uses PKCE. Trusted redirect URL: `$PUBLIC_URL/api/auth/vk/callback`. |
+| `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET` | — | Yandex OAuth app. Unset disables Yandex login. Redirect URI to register: `$PUBLIC_URL/api/auth/callback/yandex`. |
+| `VK_CLIENT_ID` | — | VK ID app. Unset disables VK login. No secret: the code exchange uses PKCE. Trusted redirect URL: `$PUBLIC_URL/api/auth/callback/vk`. |
 
 ### Accounts for local testing
 

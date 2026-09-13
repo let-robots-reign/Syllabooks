@@ -41,7 +41,7 @@ func run() error {
 		if clientSecret == "" || publicURL == "" {
 			return errors.New("YANDEX_CLIENT_ID is set, so YANDEX_CLIENT_SECRET and PUBLIC_URL must be too")
 		}
-		yandex = handlers.NewYandex(clientID, clientSecret, publicURL+"/api/auth/yandex/callback")
+		yandex = handlers.NewYandex(clientID, clientSecret, publicURL+"/api/auth/callback/yandex")
 	} else {
 		log.Print("YANDEX_CLIENT_ID is not set: Yandex login is disabled")
 	}
@@ -49,7 +49,7 @@ func run() error {
 		if publicURL == "" {
 			return errors.New("VK_CLIENT_ID is set, so PUBLIC_URL must be too")
 		}
-		vk = handlers.NewVK(clientID, publicURL+"/api/auth/vk/callback")
+		vk = handlers.NewVK(clientID, publicURL+"/api/auth/callback/vk")
 	} else {
 		log.Print("VK_CLIENT_ID is not set: VK login is disabled")
 	}
