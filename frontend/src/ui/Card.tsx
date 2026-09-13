@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import clsx from "clsx";
 import styles from "./Card.module.scss";
-import { cx } from "./cx.ts";
 import { Eyebrow } from "./Eyebrow.tsx";
 
 type Props = {
@@ -13,7 +13,7 @@ type Props = {
 // ("Формуляр"), the book being returned.
 export function Card({ label, className, children }: Props) {
   return (
-    <div className={cx(styles.card, className)}>
+    <div className={clsx(styles.card, className)}>
       {label && <Eyebrow className={styles.label}>{label}</Eyebrow>}
       {children}
     </div>

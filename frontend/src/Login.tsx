@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from "react";
+import clsx from "clsx";
 import { api, ApiError } from "./api.ts";
 import styles from "./Login.module.scss";
 import { Button, ButtonLink } from "./ui/Button.tsx";
-import { cx } from "./ui/cx.ts";
 import { Eyebrow } from "./ui/Eyebrow.tsx";
 import { Link } from "./ui/Link.tsx";
 import { TextField } from "./ui/TextField.tsx";
 import { Wordmark } from "./ui/Wordmark.tsx";
 
 type Props = {
-  onSignedIn: (token: string) => void;
+  onSignedIn: () => void;
   initialError: string | null;
 };
 
@@ -32,12 +32,12 @@ export function Login({ onSignedIn, initialError }: Props) {
   const [busy, setBusy] = useState(false);
   const shownCode = code.trim().toUpperCase();
 
-  function goTo(next: Step) {
+  const goTo = (next: Step) => {
     setError(null);
     setStep(next);
-  }
+  };
 
-  async function checkCode(event: FormEvent) {
+  const checkCode = async (event: FormEvent) => {
     event.preventDefault();
     setNotice(null);
     setError(null);
@@ -57,18 +57,18 @@ export function Login({ onSignedIn, initialError }: Props) {
     } finally {
       setBusy(false);
     }
-  }
+  };
 
-  async function logIn(event: FormEvent) {
+  const logIn = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      const res = await api<{ token: string }>("/auth/code/login", {
+      await api<void>("/auth/code/login", {
         method: "POST",
         body: { code, password },
       });
-      onSignedIn(res.token);
+      onSignedIn();
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
       setError(err.message);
@@ -77,7 +77,7 @@ export function Login({ onSignedIn, initialError }: Props) {
     } finally {
       setBusy(false);
     }
-  }
+  };
 
   const intro = (
     <div className={styles.intro}>
@@ -123,7 +123,7 @@ export function Login({ onSignedIn, initialError }: Props) {
           </ButtonLink>
           <button
             type="button"
-            className={cx(styles.fold, styles.foldClosed)}
+            className={clsx(styles.fold, styles.foldClosed)}
             aria-expanded={false}
             onClick={() => goTo("code")}
           >
@@ -145,10 +145,10 @@ export function Login({ onSignedIn, initialError }: Props) {
     return (
       <div className={styles.screen}>
         {intro}
-        <div className={cx(styles.bottom, styles.unfolded)}>
+        <div className={clsx(styles.bottom, styles.unfolded)}>
           <button
             type="button"
-            className={cx(styles.fold, styles.foldOpen)}
+            className={clsx(styles.fold, styles.foldOpen)}
             aria-expanded={true}
             onClick={() => goTo("start")}
           >

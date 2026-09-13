@@ -21,10 +21,8 @@ import (
 
 // OAuth login (PRD §8), shared by Yandex and VK ID. The browser goes to
 // /api/auth/{provider}, which sends it on to the provider. The provider sends
-// it back to its registered callback route, which signs the user in and hands
-// the session token to the frontend in the fragment of /auth/callback#token=….
-// A fragment never reaches a server log or a Referer header, and the frontend
-// strips it from the address bar straight away.
+// it back to its registered callback route, which signs the user in, sets the
+// HttpOnly session cookie, and sends the browser to /auth/callback.
 //
 // Both providers use PKCE: VK ID requires it, and Yandex supports it.
 
@@ -127,7 +125,8 @@ func (s *Server) oauthCallback(p *Provider) http.HandlerFunc {
 			redirectToApp(w, r, "error=failed")
 			return
 		}
-		redirectToApp(w, r, "token="+token)
+		s.setSessionCookie(w, token)
+		redirectToApp(w, r, "")
 	}
 }
 
@@ -179,8 +178,12 @@ func fetchJSON(req *http.Request, v any) error {
 	return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(v)
 }
 
-// redirectToApp sends the browser to the frontend's OAuth landing page with
-// the outcome in the URL fragment.
+// redirectToApp sends the browser to the frontend's OAuth landing page. Error
+// details go in the fragment so they never reach server logs.
 func redirectToApp(w http.ResponseWriter, r *http.Request, fragment string) {
-	http.Redirect(w, r, "/auth/callback#"+fragment, http.StatusFound)
+	target := "/auth/callback"
+	if fragment != "" {
+		target += "#" + fragment
+	}
+	http.Redirect(w, r, target, http.StatusFound)
 }

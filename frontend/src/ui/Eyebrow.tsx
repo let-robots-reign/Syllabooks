@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cx } from "./cx.ts";
+import clsx from "clsx";
 import styles from "./Eyebrow.module.scss";
 
 type Props = {
@@ -12,5 +12,5 @@ type Props = {
 // Eyebrow is the small uppercase label over a section: "Общий счёт класса",
 // "Формуляр".
 export function Eyebrow({ as: Tag = "p", className, children }: Props) {
-  return <Tag className={cx(styles.eyebrow, className)}>{children}</Tag>;
+  return <Tag className={clsx(styles.eyebrow, className)}>{children}</Tag>;
 }

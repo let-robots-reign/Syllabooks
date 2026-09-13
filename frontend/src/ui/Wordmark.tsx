@@ -1,4 +1,4 @@
-import { cx } from "./cx.ts";
+import clsx from "clsx";
 import styles from "./Wordmark.module.scss";
 
 type Props = {
@@ -13,14 +13,14 @@ type Props = {
 export function Wordmark({ size, className }: Props) {
   return (
     <span
-      className={cx(styles.wordmark, className)}
+      className={clsx(styles.wordmark, className)}
       style={{ fontSize: size }}
       role="img"
       aria-label="Syllabooks"
     >
       <span>Sy</span>
-      <span className={cx(styles.spine, styles.green)} />
-      <span className={cx(styles.spine, styles.brick)} />
+      <span className={clsx(styles.spine, styles.green)} />
+      <span className={clsx(styles.spine, styles.brick)} />
       <span>abooks</span>
       <span className={styles.shelf} />
     </span>

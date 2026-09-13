@@ -1,33 +1,22 @@
-import { useEffect, useState, type ReactNode } from "react";
-import {
-  api,
-  ApiError,
-  clearToken,
-  consumeOAuthRedirect,
-  loadToken,
-  saveToken,
-  type Me,
-} from "./api.ts";
+import { useEffect, useState } from "react";
+import clsx from "clsx";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { api, ApiError, oauthRedirectError, type Me } from "./api.ts";
 import styles from "./App.module.scss";
 import { Home } from "./Home.tsx";
 import { Login } from "./Login.tsx";
 import { NotFound } from "./NotFound.tsx";
 import { Privacy } from "./Privacy.tsx";
 import { Profile } from "./Profile.tsx";
-import { navigate, usePath } from "./router.ts";
-import { cx } from "./ui/cx.ts";
-
-// Runs once, before the first render, so the token doesn't linger in the URL.
-const oauthError = consumeOAuthRedirect();
 
 function App() {
-  const path = usePath();
-  const [token, setToken] = useState(loadToken);
-  const [me, setMe] = useState<Me | null>(null);
-  const [error, setError] = useState(oauthError);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const [me, setMe] = useState<Me | null>();
+  const [error, setError] = useState(() => oauthRedirectError());
 
   useEffect(() => {
-    if (!token) return;
     let current = true;
     api<Me>("/me").then(
       (me) => {
@@ -35,64 +24,76 @@ function App() {
       },
       (err: ApiError) => {
         if (!current) return;
-        if (err.status === 401) setToken(null);
+        if (err.status === 401) setMe(null);
         else setError(err.message);
       },
     );
     return () => {
       current = false;
     };
-  }, [token]);
+  }, [authAttempt]);
 
-  function signIn(newToken: string) {
-    saveToken(newToken);
+  useEffect(() => {
+    if (location.pathname === "/auth/callback") {
+      navigate("/", { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  const signIn = () => {
     setError(null);
-    setToken(newToken);
-  }
+    setMe(undefined);
+    setAuthAttempt((attempt) => attempt + 1);
+  };
 
-  async function signOut() {
-    // Forget the token locally even when the server can't be reached; the
-    // orphaned session row then simply expires.
+  const signOut = async () => {
     await api("/auth/logout", { method: "POST" }).catch(() => {});
-    clearToken();
     setMe(null);
-    setToken(null);
     navigate("/", { replace: true });
-  }
+  };
 
-  // The sign-in screens stand on sand, as in the design; the rest on cream.
-  let screen: ReactNode;
-  let sand = false;
-  if (path === "/privacy") {
-    screen = <Privacy />;
-  } else if (!token) {
-    screen = <Login onSignedIn={signIn} initialError={error} />;
-    sand = true;
-  } else if (!me) {
-    screen = <p className={styles.status}>{error ?? "Загрузка…"}</p>;
+  const isPrivacy = location.pathname === "/privacy";
+  const sand = me === null && !isPrivacy;
+
+  let routes;
+  if (me === undefined) {
+    routes = (
+      <Route
+        path="*"
+        element={<p className={styles.status}>{error ?? "Загрузка…"}</p>}
+      />
+    );
+  } else if (me === null) {
+    routes = (
+      <Route
+        path="*"
+        element={<Login onSignedIn={signIn} initialError={error} />}
+      />
+    );
   } else {
-    screen = route(path, me, signOut);
+    routes = (
+      <>
+        <Route path="/" element={<Home me={me} />} />
+        <Route
+          path="/profile"
+          element={<Profile me={me} onSignOut={signOut} />}
+        />
+        <Route path="*" element={<NotFound />} />
+      </>
+    );
   }
 
   return (
-    <div className={cx(styles.ground, sand && styles.sand)}>
+    <div className={clsx(styles.ground, sand && styles.sand)}>
       <div className={styles.column}>
-        <main className={styles.main}>{screen}</main>
+        <main className={styles.main}>
+          <Routes>
+            <Route path="/privacy" element={<Privacy />} />
+            {routes}
+          </Routes>
+        </main>
       </div>
     </div>
   );
-}
-
-// route picks the screen for a signed-in user's path.
-function route(path: string, me: Me, signOut: () => void): ReactNode {
-  switch (path) {
-    case "/":
-      return <Home me={me} />;
-    case "/profile":
-      return <Profile me={me} onSignOut={signOut} />;
-    default:
-      return <NotFound />;
-  }
 }
 
 export default App;

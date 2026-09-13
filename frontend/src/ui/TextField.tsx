@@ -1,5 +1,5 @@
 import { useId, type InputHTMLAttributes, type ReactNode } from "react";
-import { cx } from "./cx.ts";
+import clsx from "clsx";
 import styles from "./TextField.module.scss";
 
 type Props = InputHTMLAttributes<HTMLInputElement> & {
@@ -33,17 +33,17 @@ export function TextField({
   const note = error || hint;
 
   return (
-    <div className={cx(styles.field, className)}>
+    <div className={clsx(styles.field, className)}>
       <label
-        className={cx(styles.label, hideLabel && styles.hidden)}
+        className={clsx(styles.label, hideLabel && styles.hidden)}
         htmlFor={inputId}
       >
         {label}
       </label>
-      <div className={cx(styles.box, error && styles.invalid)}>
+      <div className={clsx(styles.box, error && styles.invalid)}>
         <input
           id={inputId}
-          className={cx(styles.input, code && styles.code)}
+          className={clsx(styles.input, code && styles.code)}
           aria-invalid={error ? true : undefined}
           aria-describedby={note ? noteId : undefined}
           {...input}

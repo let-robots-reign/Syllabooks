@@ -107,5 +107,6 @@ func (s *Server) codeLogin(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"token": token})
+	s.setSessionCookie(w, token)
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,12 +19,13 @@ import (
 
 // Sessions are opaque random tokens rather than JWTs, so deleting a row (on
 // ban, on password reset, or by hand) locks the client out on its very next
-// request. The client sends the token as "Authorization: Bearer <token>";
-// only its SHA-256 is stored.
+// request. The opaque token is kept in an HttpOnly cookie; only its SHA-256 is
+// stored in the database.
 
 // sessionLifetime is long on purpose (PRD §7): a student who has to log in
 // again every week stops using the app.
 const sessionLifetime = 365 * 24 * time.Hour
+const sessionCookieName = "session"
 
 func newToken() string {
 	b := make([]byte, 32)
@@ -52,16 +52,45 @@ func (s *Server) startSession(ctx context.Context, userID uuid.UUID) (string, er
 	return token, nil
 }
 
-func bearerToken(r *http.Request) (string, bool) {
-	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	return token, ok && token != ""
+func (s *Server) sessionCookie(value string, maxAge int) *http.Cookie {
+	cookie := &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   s.SecureCookies,
+		SameSite: http.SameSiteLaxMode,
+	}
+	if maxAge > 0 {
+		cookie.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
+	} else {
+		cookie.Expires = time.Unix(1, 0)
+	}
+	return cookie
 }
 
-// authenticate resolves the request's bearer token to a user. ok is false
+func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, s.sessionCookie(token, int(sessionLifetime/time.Second)))
+}
+
+func (s *Server) clearSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, s.sessionCookie("", -1))
+}
+
+func sessionToken(r *http.Request) (string, bool) {
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil || cookie.Value == "" {
+		return "", false
+	}
+	return cookie.Value, true
+}
+
+// authenticate resolves the request's session cookie to a user. ok is false
 // when there is no token, the session is unknown or expired, or the user is
 // banned: a banned user is simply not signed in.
 func (s *Server) authenticate(r *http.Request) (user gen.User, ok bool, err error) {
-	token, ok := bearerToken(r)
+	token, ok := sessionToken(r)
 	if !ok {
 		return gen.User{}, false, nil
 	}
@@ -121,11 +150,12 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request, user gen.User) {
 // logout ends the session behind the request's token. It needs no valid
 // session: signing out always succeeds.
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
-	if token, ok := bearerToken(r); ok {
+	if token, ok := sessionToken(r); ok {
 		if err := gen.New(s.Pool).DeleteSession(r.Context(), hashToken(token)); err != nil {
 			serverError(w, r, err)
 			return
 		}
 	}
+	s.clearSessionCookie(w)
 	w.WriteHeader(http.StatusNoContent)
 }

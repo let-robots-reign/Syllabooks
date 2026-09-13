@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ComponentProps } from "react";
+import clsx from "clsx";
 import styles from "./Button.module.scss";
-import { cx } from "./cx.ts";
 import { Link } from "./Link.tsx";
 
 type Look = {
@@ -12,14 +12,17 @@ type Look = {
   compact?: boolean;
 };
 
-function lookClass({ variant = "primary", compact }: Look, className?: string) {
-  return cx(
+const lookClass = (
+  { variant = "primary", compact }: Look,
+  className?: string,
+) => {
+  return clsx(
     styles.button,
     styles[variant],
     compact && styles.compact,
     className,
   );
-}
+};
 
 // Buttons are full-width blocks; put two in a row with a flex wrapper.
 export function Button({

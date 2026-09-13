@@ -47,6 +47,24 @@ func TestPasswordHash(t *testing.T) {
 	}
 }
 
+func TestSessionCookie(t *testing.T) {
+	cookie := (&Server{SecureCookies: true}).sessionCookie("opaque-token", int(sessionLifetime/time.Second))
+	if cookie.Name != sessionCookieName || cookie.Value != "opaque-token" || cookie.Path != "/" {
+		t.Fatalf("session cookie identity or scope is wrong: %+v", cookie)
+	}
+	if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("session cookie security attributes are wrong: %+v", cookie)
+	}
+	if cookie.MaxAge <= 0 || cookie.Expires.Before(time.Now().Add(364*24*time.Hour)) {
+		t.Fatalf("session cookie is not long-lived: %+v", cookie)
+	}
+
+	cleared := (&Server{SecureCookies: true}).sessionCookie("", -1)
+	if cleared.Value != "" || cleared.MaxAge >= 0 || cleared.Expires.After(time.Now()) {
+		t.Fatalf("cleared session cookie is still live: %+v", cleared)
+	}
+}
+
 func TestCodeLogin(t *testing.T) {
 	env := newTestEnv(t, Server{})
 	_, code := env.newCodeUser(t)
@@ -285,18 +303,26 @@ func (e *testEnv) exec(t *testing.T, sql string, args ...any) {
 
 func (e *testEnv) login(t *testing.T, code, password string) string {
 	t.Helper()
-	data := e.request(t, "POST", "/api/auth/code/login", "",
-		map[string]string{"code": code, "password": password}, http.StatusOK)
-	token, _ := data["token"].(string)
-	if token == "" {
-		t.Fatalf("login returned no token: %v", data)
+	resp, data := e.requestResponse(t, "POST", "/api/auth/code/login", "",
+		map[string]string{"code": code, "password": password})
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("POST /api/auth/code/login: got %d %v, want %d", resp.StatusCode, data, http.StatusNoContent)
 	}
-	return token
+	return sessionValue(t, resp)
 }
 
 // request sends a JSON request, checks the status and returns the decoded
 // JSON body, or nil when the response isn't JSON.
 func (e *testEnv) request(t *testing.T, method, path, token string, body any, wantStatus int) map[string]any {
+	t.Helper()
+	resp, data := e.requestResponse(t, method, path, token, body)
+	if resp.StatusCode != wantStatus {
+		t.Fatalf("%s %s: got %d %v, want %d", method, path, resp.StatusCode, data, wantStatus)
+	}
+	return data
+}
+
+func (e *testEnv) requestResponse(t *testing.T, method, path, token string, body any) (*http.Response, map[string]any) {
 	t.Helper()
 	var reader io.Reader
 	if body != nil {
@@ -311,13 +337,9 @@ func (e *testEnv) request(t *testing.T, method, path, token string, body any, wa
 		t.Fatalf("build request: %v", err)
 	}
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: token})
 	}
-	resp, data := e.do(t, req)
-	if resp.StatusCode != wantStatus {
-		t.Fatalf("%s %s: got %d %v, want %d", method, path, resp.StatusCode, data, wantStatus)
-	}
-	return data
+	return e.do(t, req)
 }
 
 func (e *testEnv) do(t *testing.T, req *http.Request) (*http.Response, map[string]any) {
@@ -358,6 +380,10 @@ func (e *testEnv) redirect(t *testing.T, rawURL string, cookies []*http.Cookie) 
 // fake consent screen, and come back to the callback, letting tamper edit the
 // callback's query first. It returns where the callback redirected to.
 func (e *testEnv) oauthLogin(t *testing.T, p *Provider, tamper func(url.Values)) string {
+	return e.oauthLoginResponse(t, p, tamper).Header.Get("Location")
+}
+
+func (e *testEnv) oauthLoginResponse(t *testing.T, p *Provider, tamper func(url.Values)) *http.Response {
 	t.Helper()
 	start := e.redirect(t, e.srv.URL+"/api/auth/"+p.Name, nil)
 	consent := e.redirect(t, start.Header.Get("Location"), nil)
@@ -370,16 +396,29 @@ func (e *testEnv) oauthLogin(t *testing.T, p *Provider, tamper func(url.Values))
 		tamper(query)
 	}
 	callbackPath := "/api/auth/callback/" + p.Name
-	callback := e.redirect(t, e.srv.URL+callbackPath+"?"+query.Encode(), start.Cookies())
-	return callback.Header.Get("Location")
+	return e.redirect(t, e.srv.URL+callbackPath+"?"+query.Encode(), start.Cookies())
 }
 
 func (e *testEnv) oauthToken(t *testing.T, p *Provider) string {
 	t.Helper()
-	location := e.oauthLogin(t, p, nil)
-	token, ok := strings.CutPrefix(location, "/auth/callback#token=")
-	if !ok {
-		t.Fatalf("callback redirected to %q, want a token", location)
+	resp := e.oauthLoginResponse(t, p, nil)
+	if location := resp.Header.Get("Location"); location != "/auth/callback" {
+		t.Fatalf("callback redirected to %q, want /auth/callback", location)
 	}
-	return token
+	return sessionValue(t, resp)
+}
+
+func sessionValue(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name != sessionCookieName {
+			continue
+		}
+		if !cookie.HttpOnly || cookie.Path != "/" || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge <= 0 {
+			t.Fatalf("unsafe session cookie: %+v", cookie)
+		}
+		return cookie.Value
+	}
+	t.Fatal("response has no session cookie")
+	return ""
 }

@@ -30,6 +30,6 @@ export function BackBar({ note }: { note?: string }) {
   );
 }
 
-function initial(name: string): string {
+const initial = (name: string): string => {
   return (Array.from(name.trim())[0] ?? "?").toUpperCase();
-}
+};
