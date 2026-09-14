@@ -1,0 +1,45 @@
+// The privacy policy: a long read on a phone, so prose sizes throughout.
+
+.section {
+  margin-top: var(--space-8);
+}
+
+.heading {
+  font-family: var(--font-serif);
+  font-size: var(--text-title);
+  font-weight: 500;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.text,
+.list {
+  margin-top: var(--space-2);
+  font-size: var(--text-prose);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.list {
+  padding-left: var(--space-5);
+  list-style: disc;
+
+  li + li {
+    margin-top: var(--space-2);
+  }
+
+  b {
+    font-weight: 600;
+  }
+}
+
+// Cookie names and the hash: Latin, so the brand face (see tokens.scss).
+.code {
+  font-family: var(--font-brand);
+}
+
+.revision {
+  margin-block: var(--space-8) var(--space-10);
+  font-size: var(--text-meta);
+  color: var(--color-muted);
+}

@@ -34,6 +34,8 @@ services:
       YANDEX_CLIENT_ID: ${YANDEX_CLIENT_ID:-}
       YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET:-}
       VK_CLIENT_ID: ${VK_CLIENT_ID:-}
+      GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
+      BOOK_COVERS_DIR: /data/book-covers
       # Lets `docker compose exec backend go tool goose <command>` run without flags.
       GOOSE_DRIVER: postgres
       GOOSE_DBSTRING: *database-url
@@ -41,6 +43,7 @@ services:
     volumes:
       - ./backend:/app
       - go-build-cache:/root/.cache/go-build
+      - book-covers:/data/book-covers
     depends_on:
       db:
         condition: service_healthy
@@ -69,3 +72,4 @@ services:
 volumes:
   pgdata:
   go-build-cache:
+  book-covers:

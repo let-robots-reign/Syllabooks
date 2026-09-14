@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { api, ApiError, oauthRedirectError, type Me } from "./api.ts";
 import styles from "./App.module.scss";
+import { AdminBookForm } from "./admin/AdminBookForm.tsx";
+import { AdminBooks } from "./admin/AdminBooks.tsx";
 import { Home } from "./Home.tsx";
 import { Login } from "./Login.tsx";
 import { NotFound } from "./NotFound.tsx";
@@ -53,6 +61,7 @@ function App() {
 
   const isPrivacy = location.pathname === "/privacy";
   const sand = me === null && !isPrivacy;
+  const admin = me?.is_admin && location.pathname.startsWith("/admin/books");
 
   let routes;
   if (me === undefined) {
@@ -72,11 +81,27 @@ function App() {
   } else {
     routes = (
       <>
-        <Route path="/" element={<Home me={me} />} />
+        <Route
+          path="/"
+          element={
+            me.is_admin ? (
+              <Navigate to="/admin/books" replace />
+            ) : (
+              <Home me={me} />
+            )
+          }
+        />
         <Route
           path="/profile"
           element={<Profile me={me} onSignOut={signOut} />}
         />
+        {me.is_admin && (
+          <>
+            <Route path="/admin/books" element={<AdminBooks />} />
+            <Route path="/admin/books/new" element={<AdminBookForm />} />
+            <Route path="/admin/books/:id" element={<AdminBookForm />} />
+          </>
+        )}
         <Route path="*" element={<NotFound />} />
       </>
     );
@@ -84,8 +109,8 @@ function App() {
 
   return (
     <div className={clsx(styles.ground, sand && styles.sand)}>
-      <div className={styles.column}>
-        <main className={styles.main}>
+      <div className={clsx(styles.column, admin && styles.adminColumn)}>
+        <main className={clsx(styles.main, admin && styles.adminMain)}>
           <Routes>
             <Route path="/privacy" element={<Privacy />} />
             {routes}

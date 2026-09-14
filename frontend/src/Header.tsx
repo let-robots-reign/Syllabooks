@@ -23,7 +23,7 @@ export function BackBar({ note }: { note?: string }) {
   return (
     <nav className={styles.back}>
       <Link href="/" className={styles.backLink}>
-        ← Каталог
+        ← Назад
       </Link>
       {note && <span className={styles.note}>{note}</span>}
     </nav>

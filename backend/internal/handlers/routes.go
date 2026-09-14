@@ -19,12 +19,20 @@ type Server struct {
 	// Frontend is the built single-page app, served for every path outside
 	// /api/. Without an index.html only the API is served.
 	Frontend fs.FS
+	// BookCoversDir is the persistent directory behind /api/book-covers/.
+	BookCoversDir string
+	// HTTPClient and the base URLs are configurable so metadata lookup can be
+	// tested without contacting the real providers.
+	HTTPClient         *http.Client
+	OpenLibraryBaseURL string
+	GoogleBooksBaseURL string
+	GoogleBooksAPIKey  string
 }
 
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.health)
-	mux.HandleFunc("/api/books", BooksHandler)
+	mux.HandleFunc("GET /api/book-covers/{filename}", s.bookCover)
 
 	mux.HandleFunc("GET /api/auth/yandex", s.oauthStart(s.Yandex))
 	mux.HandleFunc("GET /api/auth/callback/yandex", s.oauthCallback(s.Yandex))
@@ -35,6 +43,14 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("GET /api/me", s.requireUser(s.me))
 
+	mux.HandleFunc("GET /api/admin/books", s.requireAdmin(s.listBooks))
+	mux.HandleFunc("POST /api/admin/books", s.requireAdmin(s.createBook))
+	mux.HandleFunc("POST /api/admin/books/lookup", s.requireAdmin(s.lookupBookMetadata))
+	mux.HandleFunc("GET /api/admin/books/{id}", s.requireAdmin(s.getBook))
+	mux.HandleFunc("PUT /api/admin/books/{id}", s.requireAdmin(s.updateBook))
+	mux.HandleFunc("DELETE /api/admin/books/{id}", s.requireAdmin(s.deleteBook))
+	mux.HandleFunc("PUT /api/admin/books/{id}/cover", s.requireAdmin(s.uploadBookCover))
+	mux.HandleFunc("DELETE /api/admin/books/{id}/cover", s.requireAdmin(s.deleteBookCover))
 	mux.HandleFunc("POST /api/admin/users/{id}/reset-password", s.requireAdmin(s.resetPassword))
 
 	// An unknown API path is a plain 404, never the app's index.html.

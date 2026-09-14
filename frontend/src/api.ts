@@ -3,6 +3,38 @@ import axios from "axios";
 // The signed-in user, from GET /api/me.
 export type Me = { id: string; display_name: string; is_admin: boolean };
 
+export type BookLevel = "green" | "yellow" | "red";
+
+export type Book = {
+  id: string;
+  isbn: string | null;
+  title: string;
+  author: string;
+  level: BookLevel;
+  page_count: number;
+  description: string | null;
+  cover_url: string | null;
+};
+
+export type BookInput = {
+  isbn: string;
+  title: string;
+  author: string;
+  level: BookLevel;
+  page_count: number;
+  description: string;
+};
+
+export type BookLookup = {
+  isbn: string;
+  title: string;
+  author: string;
+  page_count: number;
+  description: string;
+  cover_preview: string | null;
+  source: "openlibrary" | "google" | "openlibrary+google";
+};
+
 export class ApiError extends Error {
   status: number;
 

@@ -50,15 +50,23 @@ type oauthProfile struct {
 
 const flowCookieName = "oauth_flow"
 
+func providerFlowCookieName(p *Provider) string {
+	return flowCookieName + "_" + p.Name
+}
+
 // flowCookie carries the state and the PKCE verifier from the start of a login
 // to its callback. The state ties the callback to this browser; the verifier
 // proves to the provider that whoever redeems the code started the login.
 // SameSite=Lax still sends it on the provider's top-level redirect back.
 func (s *Server) flowCookie(p *Provider, value string, maxAge int) *http.Cookie {
 	return &http.Cookie{
-		Name:     flowCookieName,
-		Value:    value,
-		Path:     "/api/auth/" + p.Name,
+		// Keep simultaneous attempts with different providers independent.
+		Name:  providerFlowCookieName(p),
+		Value: value,
+		// The start and callback routes have different suffixes:
+		// /api/auth/{provider} and /api/auth/callback/{provider}. Scope the
+		// cookie to their common prefix so a browser sends it to both.
+		Path:     "/api/auth/",
 		MaxAge:   maxAge,
 		HttpOnly: true,
 		Secure:   s.SecureCookies,
@@ -99,7 +107,7 @@ func (s *Server) oauthCallback(p *Provider) http.HandlerFunc {
 			return
 		}
 		var state, verifier string
-		if cookie, err := r.Cookie(flowCookieName); err == nil {
+		if cookie, err := r.Cookie(providerFlowCookieName(p)); err == nil {
 			state, verifier, _ = strings.Cut(cookie.Value, ".")
 		}
 		if state == "" || verifier == "" ||

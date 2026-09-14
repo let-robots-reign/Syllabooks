@@ -30,6 +30,8 @@ CREATE TABLE public.books (
     is_lost boolean DEFAULT false NOT NULL,
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    description text,
+    CONSTRAINT books_description_length CHECK ((char_length(description) <= 240)),
     CONSTRAINT books_isbn_check CHECK ((isbn ~ '^[0-9]{13}$'::text)),
     CONSTRAINT books_page_count_check CHECK ((page_count > 0))
 );

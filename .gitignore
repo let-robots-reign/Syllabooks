@@ -31,6 +31,7 @@ go.work.sum
 /bin/
 /backend/cmd/api/dist/*
 !/backend/cmd/api/dist/.gitkeep
+/backend/data/
 
 # Editor/IDE
 .idea/

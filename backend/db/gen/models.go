@@ -174,16 +174,17 @@ func (e UserStatus) Valid() bool {
 }
 
 type Book struct {
-	ID        uuid.UUID
-	Isbn      *string
-	Title     string
-	Author    string
-	Level     BookLevel
-	PageCount int32
-	CoverUrl  *string
-	IsLost    bool
-	Notes     *string
-	CreatedAt time.Time
+	ID          uuid.UUID
+	Isbn        *string
+	Title       string
+	Author      string
+	Level       BookLevel
+	PageCount   int32
+	CoverUrl    *string
+	IsLost      bool
+	Notes       *string
+	CreatedAt   time.Time
+	Description *string
 }
 
 type Loan struct {

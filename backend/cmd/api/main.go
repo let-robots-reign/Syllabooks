@@ -8,10 +8,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
-	"syllabooks/internal/handlers"
+	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"syllabooks/internal/handlers"
 )
 
 func main() {
@@ -34,6 +38,10 @@ func run() error {
 	// The address the browser uses, e.g. https://syllabooks.ru. OAuth redirect
 	// URIs are built from it.
 	publicURL := strings.TrimSuffix(os.Getenv("PUBLIC_URL"), "/")
+	bookCoversDir := os.Getenv("BOOK_COVERS_DIR")
+	if bookCoversDir == "" {
+		bookCoversDir = "data/covers"
+	}
 
 	var yandex, vk *handlers.Provider
 	if clientID := os.Getenv("YANDEX_CLIENT_ID"); clientID != "" {
@@ -62,23 +70,64 @@ func run() error {
 		log.Print("no frontend built into this binary (see make build): serving the API only")
 	}
 
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, databaseURL)
+	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelStartup()
+	pool, err := pgxpool.New(startupCtx, databaseURL)
 	if err != nil {
 		return fmt.Errorf("parse DATABASE_URL: %w", err)
 	}
 	defer pool.Close()
-	if err := pool.Ping(ctx); err != nil {
+	if err := pool.Ping(startupCtx); err != nil {
 		return fmt.Errorf("connect to database: %w", err)
 	}
 
 	srv := &handlers.Server{
-		Pool:          pool,
-		Yandex:        yandex,
-		VK:            vk,
-		SecureCookies: strings.HasPrefix(publicURL, "https://"),
-		Frontend:      frontend,
+		Pool:               pool,
+		Yandex:             yandex,
+		VK:                 vk,
+		SecureCookies:      strings.HasPrefix(publicURL, "https://"),
+		Frontend:           frontend,
+		BookCoversDir:      bookCoversDir,
+		HTTPClient:         &http.Client{Timeout: 10 * time.Second},
+		OpenLibraryBaseURL: "https://openlibrary.org",
+		GoogleBooksBaseURL: "https://www.googleapis.com/books/v1",
+		GoogleBooksAPIKey:  os.Getenv("GOOGLE_BOOKS_API_KEY"),
 	}
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           srv.Routes(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	shutdownSignal, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- httpServer.ListenAndServe()
+	}()
+
 	log.Printf("listening on %s", addr)
-	return http.ListenAndServe(addr, srv.Routes())
+	select {
+	case err := <-serverErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return fmt.Errorf("serve HTTP: %w", err)
+	case <-shutdownSignal.Done():
+		stop()
+		log.Print("shutting down")
+	}
+
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelShutdown()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("shut down HTTP server: %w", err)
+	}
+	if err := <-serverErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("serve HTTP: %w", err)
+	}
+	return nil
 }

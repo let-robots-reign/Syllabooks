@@ -31,6 +31,20 @@
   padding: 0 var(--gutter);
 }
 
+// The teacher catalogue is the desktop exception to the 480px student shell.
+.adminColumn {
+  width: 100%;
+  max-width: 1180px;
+
+  @media (min-width: 481px) {
+    border-inline: 0;
+  }
+}
+
+.adminMain {
+  padding: 0 28px 40px;
+}
+
 .status {
   padding-top: var(--space-10);
   text-align: center;

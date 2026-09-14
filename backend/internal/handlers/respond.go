@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 )
@@ -31,7 +32,15 @@ func serverError(w http.ResponseWriter, r *http.Request, err error) {
 // 400 and returns false.
 func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(v); err != nil {
+		writeError(w, http.StatusBadRequest, "Некорректный запрос.")
+		return false
+	}
+	// Exactly one JSON value is allowed. Without this check a valid object
+	// followed by arbitrary trailing JSON would be silently accepted.
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		writeError(w, http.StatusBadRequest, "Некорректный запрос.")
 		return false
 	}

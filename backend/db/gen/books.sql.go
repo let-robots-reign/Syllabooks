@@ -7,20 +7,23 @@ package gen
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const createBook = `-- name: CreateBook :one
-INSERT INTO books (isbn, title, author, level, page_count)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at
+INSERT INTO books (isbn, title, author, level, page_count, description)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description
 `
 
 type CreateBookParams struct {
-	Isbn      *string
-	Title     string
-	Author    string
-	Level     BookLevel
-	PageCount int32
+	Isbn        *string
+	Title       string
+	Author      string
+	Level       BookLevel
+	PageCount   int32
+	Description *string
 }
 
 func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, error) {
@@ -30,6 +33,7 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		arg.Author,
 		arg.Level,
 		arg.PageCount,
+		arg.Description,
 	)
 	var i Book
 	err := row.Scan(
@@ -43,6 +47,163 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		&i.IsLost,
 		&i.Notes,
 		&i.CreatedAt,
+		&i.Description,
+	)
+	return i, err
+}
+
+const deleteBook = `-- name: DeleteBook :one
+DELETE FROM books
+WHERE id = $1
+RETURNING cover_url
+`
+
+func (q *Queries) DeleteBook(ctx context.Context, id uuid.UUID) (*string, error) {
+	row := q.db.QueryRow(ctx, deleteBook, id)
+	var cover_url *string
+	err := row.Scan(&cover_url)
+	return cover_url, err
+}
+
+const getBook = `-- name: GetBook :one
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description
+FROM books
+WHERE id = $1
+`
+
+func (q *Queries) GetBook(ctx context.Context, id uuid.UUID) (Book, error) {
+	row := q.db.QueryRow(ctx, getBook, id)
+	var i Book
+	err := row.Scan(
+		&i.ID,
+		&i.Isbn,
+		&i.Title,
+		&i.Author,
+		&i.Level,
+		&i.PageCount,
+		&i.CoverUrl,
+		&i.IsLost,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.Description,
+	)
+	return i, err
+}
+
+const listBooks = `-- name: ListBooks :many
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description
+FROM books
+ORDER BY lower(title), title, id
+`
+
+func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
+	rows, err := q.db.Query(ctx, listBooks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Book
+	for rows.Next() {
+		var i Book
+		if err := rows.Scan(
+			&i.ID,
+			&i.Isbn,
+			&i.Title,
+			&i.Author,
+			&i.Level,
+			&i.PageCount,
+			&i.CoverUrl,
+			&i.IsLost,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.Description,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateBook = `-- name: UpdateBook :one
+UPDATE books
+SET isbn = $1,
+    title = $2,
+    author = $3,
+    level = $4,
+    page_count = $5,
+    description = $6
+WHERE id = $7
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description
+`
+
+type UpdateBookParams struct {
+	Isbn        *string
+	Title       string
+	Author      string
+	Level       BookLevel
+	PageCount   int32
+	Description *string
+	ID          uuid.UUID
+}
+
+func (q *Queries) UpdateBook(ctx context.Context, arg UpdateBookParams) (Book, error) {
+	row := q.db.QueryRow(ctx, updateBook,
+		arg.Isbn,
+		arg.Title,
+		arg.Author,
+		arg.Level,
+		arg.PageCount,
+		arg.Description,
+		arg.ID,
+	)
+	var i Book
+	err := row.Scan(
+		&i.ID,
+		&i.Isbn,
+		&i.Title,
+		&i.Author,
+		&i.Level,
+		&i.PageCount,
+		&i.CoverUrl,
+		&i.IsLost,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.Description,
+	)
+	return i, err
+}
+
+const updateBookCover = `-- name: UpdateBookCover :one
+UPDATE books
+SET cover_url = $1
+WHERE id = $2
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description
+`
+
+type UpdateBookCoverParams struct {
+	CoverUrl *string
+	ID       uuid.UUID
+}
+
+func (q *Queries) UpdateBookCover(ctx context.Context, arg UpdateBookCoverParams) (Book, error) {
+	row := q.db.QueryRow(ctx, updateBookCover, arg.CoverUrl, arg.ID)
+	var i Book
+	err := row.Scan(
+		&i.ID,
+		&i.Isbn,
+		&i.Title,
+		&i.Author,
+		&i.Level,
+		&i.PageCount,
+		&i.CoverUrl,
+		&i.IsLost,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.Description,
 	)
 	return i, err
 }

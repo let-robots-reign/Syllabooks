@@ -14,8 +14,7 @@ export function Home({ me }: { me: Me }) {
         <div className={styles.hatch} />
         <h2 className={styles.title}>Полка пока пустая</h2>
         <p className={styles.text}>
-          Учитель добавляет книги по штрих-кодам. Зайди завтра — или напомни ему
-          на уроке.
+          Учитель добавляет книги по штрих-кодам. Зайди попозже.
         </p>
       </section>
     </>

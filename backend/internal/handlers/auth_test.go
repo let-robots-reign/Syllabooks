@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -62,6 +63,29 @@ func TestSessionCookie(t *testing.T) {
 	cleared := (&Server{SecureCookies: true}).sessionCookie("", -1)
 	if cleared.Value != "" || cleared.MaxAge >= 0 || cleared.Expires.After(time.Now()) {
 		t.Fatalf("cleared session cookie is still live: %+v", cleared)
+	}
+}
+
+func TestOAuthFlowCookieReachesCallback(t *testing.T) {
+	p := &Provider{Name: "yandex"}
+	cookie := (&Server{SecureCookies: true}).flowCookie(p, "state.verifier", 10*60)
+	if cookie.Name != "oauth_flow_yandex" || cookie.Path != "/api/auth/" {
+		t.Fatalf("flow cookie identity or scope is wrong: %+v", cookie)
+	}
+	if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("flow cookie security attributes are wrong: %+v", cookie)
+	}
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start, _ := url.Parse("https://syllabooks.test/api/auth/yandex")
+	callback, _ := url.Parse("https://syllabooks.test/api/auth/callback/yandex")
+	jar.SetCookies(start, []*http.Cookie{cookie})
+	cookies := jar.Cookies(callback)
+	if len(cookies) != 1 || cookies[0].Name != cookie.Name || cookies[0].Value != cookie.Value {
+		t.Fatalf("callback received cookies %+v, want %s", cookies, cookie.Name)
 	}
 }
 
@@ -396,7 +420,16 @@ func (e *testEnv) oauthLoginResponse(t *testing.T, p *Provider, tamper func(url.
 		tamper(query)
 	}
 	callbackPath := "/api/auth/callback/" + p.Name
-	return e.redirect(t, e.srv.URL+callbackPath+"?"+query.Encode(), start.Cookies())
+	callbackURL, err := url.Parse(e.srv.URL + callbackPath + "?" + query.Encode())
+	if err != nil {
+		t.Fatalf("parse callback URL: %v", err)
+	}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("create cookie jar: %v", err)
+	}
+	jar.SetCookies(start.Request.URL, start.Cookies())
+	return e.redirect(t, callbackURL.String(), jar.Cookies(callbackURL))
 }
 
 func (e *testEnv) oauthToken(t *testing.T, p *Provider) string {
