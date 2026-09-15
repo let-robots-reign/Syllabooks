@@ -16,6 +16,7 @@ import { Login } from "./Login.tsx";
 import { NotFound } from "./NotFound.tsx";
 import { Privacy } from "./Privacy.tsx";
 import { Profile } from "./Profile.tsx";
+import { Scan } from "./scan/Scan.tsx";
 
 function App() {
   const location = useLocation();
@@ -62,6 +63,7 @@ function App() {
   const isPrivacy = location.pathname === "/privacy";
   const sand = me === null && !isPrivacy;
   const admin = me?.is_admin && location.pathname.startsWith("/admin/books");
+  const scan = me != null && location.pathname === "/scan";
 
   let routes;
   if (me === undefined) {
@@ -95,6 +97,7 @@ function App() {
           path="/profile"
           element={<Profile me={me} onSignOut={signOut} />}
         />
+        <Route path="/scan" element={<Scan />} />
         {me.is_admin && (
           <>
             <Route path="/admin/books" element={<AdminBooks />} />
@@ -110,7 +113,13 @@ function App() {
   return (
     <div className={clsx(styles.ground, sand && styles.sand)}>
       <div className={clsx(styles.column, admin && styles.adminColumn)}>
-        <main className={clsx(styles.main, admin && styles.adminMain)}>
+        <main
+          className={clsx(
+            styles.main,
+            admin && styles.adminMain,
+            scan && styles.scanMain,
+          )}
+        >
           <Routes>
             <Route path="/privacy" element={<Privacy />} />
             {routes}

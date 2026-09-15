@@ -1,0 +1,4 @@
+overrides:
+  "@ericblade/quagga2@1.12.1>fsevents": "-"
+  "@ericblade/quagga2@1.12.1>ndarray-pixels": "-"
+  "@ericblade/quagga2@1.12.1>sharp": "-"

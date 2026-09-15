@@ -4,10 +4,18 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@ericblade/quagga2@1.12.1>fsevents': '-'
+  '@ericblade/quagga2@1.12.1>ndarray-pixels': '-'
+  '@ericblade/quagga2@1.12.1>sharp': '-'
+
 importers:
 
   .:
     dependencies:
+      '@ericblade/quagga2':
+        specifier: ^1.12.1
+        version: 1.12.1
       '@fontsource/bitter':
         specifier: ^5.3.0
         version: 5.3.0
@@ -153,6 +161,10 @@ packages:
 
   '@cacheable/utils@2.5.0':
     resolution: {integrity: sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA==}
+
+  '@ericblade/quagga2@1.12.1':
+    resolution: {integrity: sha512-Ar7x7LHxqO9yqJ4nwrwywpyHcmSqykSi4CPDapp+L5xS5IFCTXmvJewn+2GzVNKOQHdXfRC3E57B5vufQiNCDw==}
+    engines: {node: '>= 20.0'}
 
   '@eslint-community/eslint-utils@4.10.1':
     resolution: {integrity: sha512-cuadcxVFE8sDK6iWJbs8Sn0av2Nrh2QSGQhVlBW9AaAHqHwjWsZHT8LJ4hFGPh7ASBV2deFdM7H/DPjulmh8rg==}
@@ -761,6 +773,9 @@ packages:
   get-proto@1.0.1:
     resolution: {integrity: sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g==}
     engines: {node: '>= 0.4'}
+
+  gl-matrix@3.4.4:
+    resolution: {integrity: sha512-latSnyDNt/8zYUB6VIJ6PCh2jBjJX6gnDsoCZ7LyW7GkqrD51EWwa9qCoGixj8YqBtETQK/xY7OmpTF8xz1DdQ==}
 
   glob-parent@6.0.2:
     resolution: {integrity: sha512-XxwI8EOhVQgWp6iDL+3b0r86f4d6AX6zSU55HfB4ydCEuXLXc5FcYeOu+nnGftS4TEju/11rt4KJPTMgbfmv4A==}
@@ -1444,6 +1459,10 @@ snapshots:
       hashery: 1.5.1
       keyv: 5.6.0
 
+  '@ericblade/quagga2@1.12.1':
+    dependencies:
+      gl-matrix: 3.4.4
+
   '@eslint-community/eslint-utils@4.10.1(eslint@10.10.0)':
     dependencies:
       eslint: 10.10.0
@@ -2011,6 +2030,8 @@ snapshots:
     dependencies:
       dunder-proto: 1.0.1
       es-object-atoms: 1.1.2
+
+  gl-matrix@3.4.4: {}
 
   glob-parent@6.0.2:
     dependencies:
