@@ -10,6 +10,18 @@
   display: flex;
 }
 
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.admin {
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .avatar {
   display: flex;
   align-items: center;

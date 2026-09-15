@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { api, ApiError, type Book, type BookLevel } from "../api.ts";
 import { Link } from "../ui/Link.tsx";
 import { Wordmark } from "../ui/Wordmark.tsx";
-import { bookLevels, levelLabel } from "./bookLevels.ts";
+import { bookLevels, levelLabel } from "../bookLevels.ts";
 import styles from "./AdminBooks.module.scss";
 
 type Filter = "all" | BookLevel | "missing-cover";
@@ -83,7 +83,9 @@ export function AdminBooks() {
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <Wordmark size={24} />
+        <Link href="/" className={styles.home} aria-label="Открыть каталог">
+          <Wordmark size={24} />
+        </Link>
         <div className={styles.headerActions}>
           <label className={styles.search}>
             <span className={styles.visuallyHidden}>Поиск по названию</span>

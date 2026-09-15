@@ -10,6 +10,10 @@
   padding-bottom: var(--space-4);
 }
 
+.home {
+  display: flex;
+}
+
 .headerActions,
 .actions,
 .filters {

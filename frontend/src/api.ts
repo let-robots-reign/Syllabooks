@@ -16,6 +16,18 @@ export type Book = {
   cover_url: string | null;
 };
 
+export type CatalogBook = Book & {
+  current_loan: {
+    borrower_name: string;
+    due_at: string;
+  } | null;
+};
+
+export type CatalogResponse = {
+  finished_count: number;
+  books: CatalogBook[];
+};
+
 export type BookInput = {
   isbn: string;
   title: string;

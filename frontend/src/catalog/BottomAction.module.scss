@@ -1,0 +1,25 @@
+.action {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px var(--gutter) calc(18px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-paper);
+
+  p {
+    margin-bottom: 9px;
+    color: var(--color-muted);
+    font-size: var(--text-meta);
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  @media (min-width: 481px) {
+    border-inline: 1px solid var(--color-border);
+  }
+}

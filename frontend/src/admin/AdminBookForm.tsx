@@ -17,7 +17,7 @@ import {
   type BookLookup,
 } from "../api.ts";
 import { Link } from "../ui/Link.tsx";
-import { bookLevels } from "./bookLevels.ts";
+import { bookLevels } from "../bookLevels.ts";
 import styles from "./AdminBookForm.module.scss";
 
 const blankBook: BookInput = {

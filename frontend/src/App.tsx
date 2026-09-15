@@ -1,16 +1,11 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import {
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, oauthRedirectError, type Me } from "./api.ts";
 import styles from "./App.module.scss";
 import { AdminBookForm } from "./admin/AdminBookForm.tsx";
 import { AdminBooks } from "./admin/AdminBooks.tsx";
+import { BookDetail } from "./BookDetail.tsx";
 import { Home } from "./Home.tsx";
 import { Login } from "./Login.tsx";
 import { NotFound } from "./NotFound.tsx";
@@ -83,20 +78,12 @@ function App() {
   } else {
     routes = (
       <>
-        <Route
-          path="/"
-          element={
-            me.is_admin ? (
-              <Navigate to="/admin/books" replace />
-            ) : (
-              <Home me={me} />
-            )
-          }
-        />
+        <Route path="/" element={<Home me={me} />} />
         <Route
           path="/profile"
           element={<Profile me={me} onSignOut={signOut} />}
         />
+        <Route path="/books/:id" element={<BookDetail />} />
         <Route path="/scan" element={<Scan />} />
         {me.is_admin && (
           <>
