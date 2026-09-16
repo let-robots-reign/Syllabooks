@@ -51,6 +51,10 @@ func run() error {
 		}
 		loanDays = int32(parsed)
 	}
+	shelfCode := strings.TrimSpace(os.Getenv("SHELF_CODE"))
+	if shelfCode == "" {
+		return errors.New("SHELF_CODE is not set")
+	}
 
 	var yandex, vk *handlers.Provider
 	if clientID := os.Getenv("YANDEX_CLIENT_ID"); clientID != "" {
@@ -93,6 +97,7 @@ func run() error {
 	srv := &handlers.Server{
 		Pool:               pool,
 		LoanDays:           loanDays,
+		ShelfCode:          shelfCode,
 		Yandex:             yandex,
 		VK:                 vk,
 		SecureCookies:      strings.HasPrefix(publicURL, "https://"),

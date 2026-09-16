@@ -26,6 +26,7 @@ export type CatalogBook = Book & {
 export type CatalogResponse = {
   finished_count: number;
   books: CatalogBook[];
+  my_loan: LoanDetail | null;
 };
 
 export type BookInput = {
@@ -54,12 +55,40 @@ export type BorrowResponse = {
   book: Book;
 };
 
+export type ReturnReason = "finished" | "too_hard" | "boring" | "skipped";
+
+export type LoanDetail = {
+  id: string;
+  taken_at: string;
+  due_at: string;
+  returned_at: string | null;
+  return_reason: ReturnReason | null;
+  shelf_scan_ok: boolean | null;
+  book_scan_ok: boolean | null;
+  book: Book;
+};
+
+export type ReturnMethod = "scan" | "manual" | "skipped";
+
+export type ReturnEvidence = {
+  method: ReturnMethod;
+  value: string;
+};
+
 export type BorrowErrorCode =
   | "invalid_isbn"
   | "book_not_found"
   | "book_lost"
   | "book_unavailable"
-  | "loan_limit";
+  | "loan_limit"
+  | "no_open_loan"
+  | "invalid_shelf_code"
+  | "wrong_book"
+  | "already_returned"
+  | "invalid_return_evidence"
+  | "invalid_return_reason"
+  | "loan_not_returned"
+  | "return_reason_set";
 
 type ErrorPayload = {
   error?: string;

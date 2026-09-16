@@ -33,6 +33,7 @@ The backend reads only its environment:
 | `LISTEN_ADDR`  | `:8080` |                                         |
 | `PUBLIC_URL`   | —       | The address the browser uses, e.g. `https://syllabooks.ru`. OAuth redirect URIs are built from it; `https://` also makes cookies Secure. Compose sets `http://localhost:8000`. |
 | `LOAN_DAYS`    | `21`    | Positive integer; borrowing period used to calculate the due date. |
+| `SHELF_CODE`   | —       | Required outside Compose. Exact text encoded in the QR beside the shelf; Compose defaults to `SYLLABOOKS-LOCAL-SHELF` for development. |
 | `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET` | — | Yandex OAuth app. Unset disables Yandex login. Redirect URI to register: `$PUBLIC_URL/api/auth/callback/yandex`. |
 | `VK_CLIENT_ID` | — | VK ID app. Unset disables VK login. No secret: the code exchange uses PKCE. Trusted redirect URL: `$PUBLIC_URL/api/auth/callback/vk`. |
 
@@ -49,6 +50,10 @@ UPDATE users SET is_admin = true WHERE code = 'K7F2MX';  -- admin is set by hand
 Then sign in at http://localhost:8000 with the code; the first login asks you to
 make up a password. Deleting a row from `sessions` signs that client out on its
 next request.
+
+To test returns locally, display or print a QR whose payload is exactly the
+configured `SHELF_CODE`. The same value can be printed underneath for manual
+entry; manual entry is deliberately logged as an unscanned return.
 
 ### Migrations (goose)
 

@@ -57,7 +57,7 @@ func presentCatalogBook(book catalogBookData) catalogBookResponse {
 	return response
 }
 
-func (s *Server) listCatalog(w http.ResponseWriter, r *http.Request, _ gen.User) {
+func (s *Server) listCatalog(w http.ResponseWriter, r *http.Request, user gen.User) {
 	queries := gen.New(s.Pool)
 	books, err := queries.ListCatalogBooks(r.Context())
 	if err != nil {
@@ -67,6 +67,15 @@ func (s *Server) listCatalog(w http.ResponseWriter, r *http.Request, _ gen.User)
 	finishedCount, err := queries.CountFinishedBooks(r.Context())
 	if err != nil {
 		serverError(w, r, fmt.Errorf("count finished books: %w", err))
+		return
+	}
+	var myLoan *loanDetailResponse
+	current, err := queries.GetCurrentLoanWithBook(r.Context(), user.ID)
+	if err == nil {
+		presented := presentCurrentLoan(current)
+		myLoan = &presented
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		serverError(w, r, fmt.Errorf("get reader's current loan: %w", err))
 		return
 	}
 
@@ -82,6 +91,7 @@ func (s *Server) listCatalog(w http.ResponseWriter, r *http.Request, _ gen.User)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"finished_count": finishedCount,
 		"books":          result,
+		"my_loan":        myLoan,
 	})
 }
 

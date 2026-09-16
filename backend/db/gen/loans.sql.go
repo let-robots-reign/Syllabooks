@@ -12,6 +12,45 @@ import (
 	"github.com/google/uuid"
 )
 
+const completeReturn = `-- name: CompleteReturn :one
+UPDATE loans
+SET returned_at = now(),
+    shelf_scan_ok = $1,
+    book_scan_ok = $2
+WHERE id = $3 AND user_id = $4 AND returned_at IS NULL
+RETURNING id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin
+`
+
+type CompleteReturnParams struct {
+	ShelfScanOk *bool
+	BookScanOk  *bool
+	ID          uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) CompleteReturn(ctx context.Context, arg CompleteReturnParams) (Loan, error) {
+	row := q.db.QueryRow(ctx, completeReturn,
+		arg.ShelfScanOk,
+		arg.BookScanOk,
+		arg.ID,
+		arg.UserID,
+	)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.UserID,
+		&i.TakenAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.ReturnReason,
+		&i.ShelfScanOk,
+		&i.BookScanOk,
+		&i.CreatedByAdmin,
+	)
+	return i, err
+}
+
 const createLoan = `-- name: CreateLoan :one
 INSERT INTO loans (book_id, user_id, due_at, created_by_admin)
 VALUES ($1, $2, now() + $3::integer * interval '1 day', $4)
@@ -75,6 +114,147 @@ func (q *Queries) GetBookByISBN(ctx context.Context, isbn *string) (Book, error)
 	return i, err
 }
 
+const getCurrentLoanWithBook = `-- name: GetCurrentLoanWithBook :one
+SELECT l.id,
+       l.book_id,
+       l.user_id,
+       l.taken_at,
+       l.due_at,
+       l.returned_at,
+       l.return_reason,
+       l.shelf_scan_ok,
+       l.book_scan_ok,
+       l.created_by_admin,
+       b.isbn AS book_isbn,
+       b.title AS book_title,
+       b.author AS book_author,
+       b.level AS book_level,
+       b.page_count AS book_page_count,
+       b.description AS book_description,
+       b.cover_url AS book_cover_url
+FROM loans l
+JOIN books b ON b.id = l.book_id
+WHERE l.user_id = $1 AND l.returned_at IS NULL
+`
+
+type GetCurrentLoanWithBookRow struct {
+	ID              uuid.UUID
+	BookID          uuid.UUID
+	UserID          uuid.UUID
+	TakenAt         time.Time
+	DueAt           time.Time
+	ReturnedAt      *time.Time
+	ReturnReason    *ReturnReason
+	ShelfScanOk     *bool
+	BookScanOk      *bool
+	CreatedByAdmin  bool
+	BookIsbn        *string
+	BookTitle       string
+	BookAuthor      string
+	BookLevel       BookLevel
+	BookPageCount   int32
+	BookDescription *string
+	BookCoverUrl    *string
+}
+
+func (q *Queries) GetCurrentLoanWithBook(ctx context.Context, userID uuid.UUID) (GetCurrentLoanWithBookRow, error) {
+	row := q.db.QueryRow(ctx, getCurrentLoanWithBook, userID)
+	var i GetCurrentLoanWithBookRow
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.UserID,
+		&i.TakenAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.ReturnReason,
+		&i.ShelfScanOk,
+		&i.BookScanOk,
+		&i.CreatedByAdmin,
+		&i.BookIsbn,
+		&i.BookTitle,
+		&i.BookAuthor,
+		&i.BookLevel,
+		&i.BookPageCount,
+		&i.BookDescription,
+		&i.BookCoverUrl,
+	)
+	return i, err
+}
+
+const getLoanWithBookForUser = `-- name: GetLoanWithBookForUser :one
+SELECT l.id,
+       l.book_id,
+       l.user_id,
+       l.taken_at,
+       l.due_at,
+       l.returned_at,
+       l.return_reason,
+       l.shelf_scan_ok,
+       l.book_scan_ok,
+       l.created_by_admin,
+       b.isbn AS book_isbn,
+       b.title AS book_title,
+       b.author AS book_author,
+       b.level AS book_level,
+       b.page_count AS book_page_count,
+       b.description AS book_description,
+       b.cover_url AS book_cover_url
+FROM loans l
+JOIN books b ON b.id = l.book_id
+WHERE l.id = $1 AND l.user_id = $2
+`
+
+type GetLoanWithBookForUserParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+type GetLoanWithBookForUserRow struct {
+	ID              uuid.UUID
+	BookID          uuid.UUID
+	UserID          uuid.UUID
+	TakenAt         time.Time
+	DueAt           time.Time
+	ReturnedAt      *time.Time
+	ReturnReason    *ReturnReason
+	ShelfScanOk     *bool
+	BookScanOk      *bool
+	CreatedByAdmin  bool
+	BookIsbn        *string
+	BookTitle       string
+	BookAuthor      string
+	BookLevel       BookLevel
+	BookPageCount   int32
+	BookDescription *string
+	BookCoverUrl    *string
+}
+
+func (q *Queries) GetLoanWithBookForUser(ctx context.Context, arg GetLoanWithBookForUserParams) (GetLoanWithBookForUserRow, error) {
+	row := q.db.QueryRow(ctx, getLoanWithBookForUser, arg.ID, arg.UserID)
+	var i GetLoanWithBookForUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.UserID,
+		&i.TakenAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.ReturnReason,
+		&i.ShelfScanOk,
+		&i.BookScanOk,
+		&i.CreatedByAdmin,
+		&i.BookIsbn,
+		&i.BookTitle,
+		&i.BookAuthor,
+		&i.BookLevel,
+		&i.BookPageCount,
+		&i.BookDescription,
+		&i.BookCoverUrl,
+	)
+	return i, err
+}
+
 const getOpenLoanForBook = `-- name: GetOpenLoanForBook :one
 SELECT l.id,
        l.book_id,
@@ -133,6 +313,40 @@ WHERE user_id = $1 AND returned_at IS NULL
 
 func (q *Queries) GetOpenLoanForUser(ctx context.Context, userID uuid.UUID) (Loan, error) {
 	row := q.db.QueryRow(ctx, getOpenLoanForUser, userID)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.UserID,
+		&i.TakenAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.ReturnReason,
+		&i.ShelfScanOk,
+		&i.BookScanOk,
+		&i.CreatedByAdmin,
+	)
+	return i, err
+}
+
+const setReturnReason = `-- name: SetReturnReason :one
+UPDATE loans
+SET return_reason = $1
+WHERE id = $2
+  AND user_id = $3
+  AND returned_at IS NOT NULL
+  AND return_reason IS NULL
+RETURNING id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin
+`
+
+type SetReturnReasonParams struct {
+	ReturnReason *ReturnReason
+	ID           uuid.UUID
+	UserID       uuid.UUID
+}
+
+func (q *Queries) SetReturnReason(ctx context.Context, arg SetReturnReasonParams) (Loan, error) {
+	row := q.db.QueryRow(ctx, setReturnReason, arg.ReturnReason, arg.ID, arg.UserID)
 	var i Loan
 	err := row.Scan(
 		&i.ID,

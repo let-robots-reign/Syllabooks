@@ -40,16 +40,33 @@ const cameraErrorName = (error: unknown): string => {
   return "";
 };
 
-const releaseScanner = async (quagga: QuaggaJSStatic): Promise<void> => {
+const stopStreamTracks = (stream: MediaStream | null): void => {
+  stream?.getTracks().forEach((track) => track.stop());
+};
+
+const releaseScanner = async (
+  quagga: QuaggaJSStatic,
+  target: HTMLDivElement | null,
+): Promise<void> => {
   const stream = quagga.CameraAccess.getActiveStream();
+  // Stop the hardware synchronously. Quagga.stop() releases the same stream,
+  // but does so asynchronously; waiting for it first can leave the browser's
+  // camera indicator active after the scanner UI has already closed.
+  stopStreamTracks(stream);
+  target?.querySelectorAll("video").forEach((video) => {
+    const videoStream = video.srcObject;
+    if (videoStream && "getTracks" in videoStream) {
+      videoStream.getTracks().forEach((track) => track.stop());
+    }
+    video.pause();
+    video.srcObject = null;
+  });
 
   try {
     await quagga.stop();
   } catch {
     // stop() can reject when setup failed before Quagga became ready.
   }
-
-  stream?.getTracks().forEach((track) => track.stop());
 
   try {
     await quagga.CameraAccess.release();
@@ -71,6 +88,7 @@ export function CameraViewport({
   useEffect(() => {
     let disposed = false;
     let quagga: QuaggaJSStatic | undefined;
+    let videoTarget: HTMLDivElement | null = null;
     let detectedHandler: ((result: QuaggaJSResultObject) => void) | undefined;
 
     const start = async () => {
@@ -83,6 +101,7 @@ export function CameraViewport({
         const module = await import("@ericblade/quagga2");
         quagga = module.default;
         if (disposed || !target.current) return;
+        videoTarget = target.current;
 
         let previousCode = "";
         let matchingReads = 0;
@@ -101,6 +120,7 @@ export function CameraViewport({
 
           if (matchingReads >= 2 && !disposed) {
             detectionComplete = true;
+            stopStreamTracks(quagga?.CameraAccess.getActiveStream() ?? null);
             onDetected(value);
           }
         };
@@ -108,7 +128,7 @@ export function CameraViewport({
         await quagga.init({
           inputStream: {
             type: "LiveStream",
-            target: target.current,
+            target: videoTarget,
             willReadFrequently: true,
             constraints: {
               facingMode: { ideal: "environment" },
@@ -134,7 +154,7 @@ export function CameraViewport({
         });
 
         if (disposed) {
-          await releaseScanner(quagga);
+          await releaseScanner(quagga, videoTarget);
           return;
         }
 
@@ -142,7 +162,7 @@ export function CameraViewport({
         quagga.start();
         setStarting(false);
       } catch (error) {
-        if (quagga) await releaseScanner(quagga);
+        if (quagga) await releaseScanner(quagga, videoTarget);
         if (disposed) return;
 
         const name = cameraErrorName(error);
@@ -160,7 +180,7 @@ export function CameraViewport({
       disposed = true;
       if (!quagga) return;
       if (detectedHandler) quagga.offDetected(detectedHandler);
-      void releaseScanner(quagga);
+      void releaseScanner(quagga, videoTarget);
     };
   }, [onDetected, onFailure]);
 
@@ -557,7 +577,11 @@ function BorrowErrorScreen({
       ? `Сначала верни ${error.book.title}`
       : "Сначала верни книгу";
     lead = `Правило клуба: одна книга на руках.${due ? ` Срок — до ${due}, вернуть можно в любой день.` : ""}`;
-    actions = <ButtonLink href="/">Вернуться в каталог</ButtonLink>;
+    actions = (
+      <ButtonLink href="/return">
+        {error.book ? `Вернуть «${error.book.title}»` : "Вернуть книгу"}
+      </ButtonLink>
+    );
   } else if (error.code === "book_lost") {
     eyebrow = "Книга не выдаётся";
     title = error.book

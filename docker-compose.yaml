@@ -37,6 +37,9 @@ services:
       GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
       BOOK_COVERS_DIR: /data/book-covers
       LOAN_DAYS: ${LOAN_DAYS:-21}
+      # Local fallback keeps existing .env files working. Production must set
+      # its own value and encode that exact text in the printed shelf QR.
+      SHELF_CODE: ${SHELF_CODE:-SYLLABOOKS-LOCAL-SHELF}
       # Lets `docker compose exec backend go tool goose <command>` run without flags.
       GOOSE_DRIVER: postgres
       GOOSE_DBSTRING: *database-url

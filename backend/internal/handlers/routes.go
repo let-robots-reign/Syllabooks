@@ -14,6 +14,8 @@ type Server struct {
 	Pool *pgxpool.Pool
 	// LoanDays is the borrowing period. Values <= 0 use the 21-day default.
 	LoanDays int32
+	// ShelfCode is the exact payload encoded in the QR beside the shelf.
+	ShelfCode string
 	// OAuth providers, each nil when not configured.
 	Yandex, VK *Provider
 	// SecureCookies marks cookies Secure; true when the app is served over HTTPS.
@@ -47,6 +49,10 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/books", s.requireUser(s.listCatalog))
 	mux.HandleFunc("GET /api/books/{id}", s.requireUser(s.getCatalogBook))
 	mux.HandleFunc("POST /api/loans", s.requireUser(s.borrowBook))
+	mux.HandleFunc("GET /api/loans/current", s.requireUser(s.currentLoan))
+	mux.HandleFunc("POST /api/loans/{id}/shelf-check", s.requireUser(s.checkShelfCode))
+	mux.HandleFunc("POST /api/loans/{id}/return", s.requireUser(s.returnBook))
+	mux.HandleFunc("POST /api/loans/{id}/return-reason", s.requireUser(s.setReturnReason))
 
 	mux.HandleFunc("GET /api/admin/books", s.requireAdmin(s.listBooks))
 	mux.HandleFunc("POST /api/admin/books", s.requireAdmin(s.createBook))

@@ -5,12 +5,14 @@ import { api, ApiError, oauthRedirectError, type Me } from "./api.ts";
 import styles from "./App.module.scss";
 import { AdminBookForm } from "./admin/AdminBookForm.tsx";
 import { AdminBooks } from "./admin/AdminBooks.tsx";
+import { takeAuthReturnPath } from "./authResume.ts";
 import { BookDetail } from "./BookDetail.tsx";
 import { Home } from "./Home.tsx";
 import { Login } from "./Login.tsx";
 import { NotFound } from "./NotFound.tsx";
 import { Privacy } from "./Privacy.tsx";
 import { Profile } from "./Profile.tsx";
+import { Return } from "./returns/Return.tsx";
 import { Scan } from "./scan/Scan.tsx";
 
 function App() {
@@ -39,14 +41,18 @@ function App() {
 
   useEffect(() => {
     if (location.pathname === "/auth/callback") {
-      navigate("/", { replace: true });
+      navigate(takeAuthReturnPath() ?? "/", { replace: true });
     }
   }, [location.pathname, navigate]);
 
   const signIn = () => {
+    const returnPath = takeAuthReturnPath();
     setError(null);
     setMe(undefined);
     setAuthAttempt((attempt) => attempt + 1);
+    if (returnPath && returnPath !== location.pathname) {
+      navigate(returnPath, { replace: true });
+    }
   };
 
   const signOut = async () => {
@@ -58,7 +64,9 @@ function App() {
   const isPrivacy = location.pathname === "/privacy";
   const sand = me === null && !isPrivacy;
   const admin = me?.is_admin && location.pathname.startsWith("/admin/books");
-  const scan = me != null && location.pathname === "/scan";
+  const scan =
+    me != null &&
+    (location.pathname === "/scan" || location.pathname === "/return");
 
   let routes;
   if (me === undefined) {
@@ -85,6 +93,7 @@ function App() {
         />
         <Route path="/books/:id" element={<BookDetail />} />
         <Route path="/scan" element={<Scan />} />
+        <Route path="/return" element={<Return />} />
         {me.is_admin && (
           <>
             <Route path="/admin/books" element={<AdminBooks />} />

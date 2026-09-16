@@ -57,6 +57,7 @@ export function Home({ me }: { me: Me }) {
 
   const activeCount = Object.values(active).filter(Boolean).length;
   const finishedCount = catalog?.finished_count;
+  const myLoan = catalog?.my_loan;
 
   return (
     <>
@@ -151,7 +152,9 @@ export function Home({ me }: { me: Me }) {
       </section>
 
       <BottomAction>
-        <ButtonLink href="/scan">Сканировать книгу</ButtonLink>
+        <ButtonLink href={myLoan ? "/return" : "/scan"}>
+          {myLoan ? `Вернуть «${myLoan.book.title}»` : "Сканировать книгу"}
+        </ButtonLink>
       </BottomAction>
     </>
   );

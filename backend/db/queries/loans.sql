@@ -30,3 +30,64 @@ SELECT l.id,
 FROM loans l
 JOIN users u ON u.id = l.user_id
 WHERE l.book_id = @book_id AND l.returned_at IS NULL;
+
+-- name: GetCurrentLoanWithBook :one
+SELECT l.id,
+       l.book_id,
+       l.user_id,
+       l.taken_at,
+       l.due_at,
+       l.returned_at,
+       l.return_reason,
+       l.shelf_scan_ok,
+       l.book_scan_ok,
+       l.created_by_admin,
+       b.isbn AS book_isbn,
+       b.title AS book_title,
+       b.author AS book_author,
+       b.level AS book_level,
+       b.page_count AS book_page_count,
+       b.description AS book_description,
+       b.cover_url AS book_cover_url
+FROM loans l
+JOIN books b ON b.id = l.book_id
+WHERE l.user_id = @user_id AND l.returned_at IS NULL;
+
+-- name: GetLoanWithBookForUser :one
+SELECT l.id,
+       l.book_id,
+       l.user_id,
+       l.taken_at,
+       l.due_at,
+       l.returned_at,
+       l.return_reason,
+       l.shelf_scan_ok,
+       l.book_scan_ok,
+       l.created_by_admin,
+       b.isbn AS book_isbn,
+       b.title AS book_title,
+       b.author AS book_author,
+       b.level AS book_level,
+       b.page_count AS book_page_count,
+       b.description AS book_description,
+       b.cover_url AS book_cover_url
+FROM loans l
+JOIN books b ON b.id = l.book_id
+WHERE l.id = @id AND l.user_id = @user_id;
+
+-- name: CompleteReturn :one
+UPDATE loans
+SET returned_at = now(),
+    shelf_scan_ok = @shelf_scan_ok,
+    book_scan_ok = @book_scan_ok
+WHERE id = @id AND user_id = @user_id AND returned_at IS NULL
+RETURNING *;
+
+-- name: SetReturnReason :one
+UPDATE loans
+SET return_reason = @return_reason
+WHERE id = @id
+  AND user_id = @user_id
+  AND returned_at IS NOT NULL
+  AND return_reason IS NULL
+RETURNING *;
