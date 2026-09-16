@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -20,6 +22,39 @@ var (
 	errMetadataNotFound = errors.New("book metadata not found")
 	htmlTagPattern      = regexp.MustCompile(`(?s)<[^>]*>`)
 )
+
+type metadataProviderError struct {
+	Provider string
+	Err      error
+}
+
+func (e *metadataProviderError) Error() string {
+	return e.Provider + ": " + e.Err.Error()
+}
+
+func (e *metadataProviderError) Unwrap() error {
+	return e.Err
+}
+
+type metadataHTTPError struct {
+	StatusCode int
+}
+
+func (e *metadataHTTPError) Error() string {
+	return fmt.Sprintf("metadata provider returned HTTP %d", e.StatusCode)
+}
+
+type metadataDecodeError struct {
+	Err error
+}
+
+func (e *metadataDecodeError) Error() string {
+	return "decode metadata: " + e.Err.Error()
+}
+
+func (e *metadataDecodeError) Unwrap() error {
+	return e.Err
+}
 
 type bookMetadata struct {
 	Title       string
@@ -35,10 +70,18 @@ func (s *Server) lookupMetadata(ctx context.Context, isbn string) (bookMetadata,
 	result := openLibrary
 	found := openFound
 
-	needsGoogle := !openFound || result.Title == "" || result.Author == "" ||
-		result.PageCount == 0 || result.Description == "" || result.CoverURL == ""
+	missingFields := missingMetadataFields(result)
+	needsGoogle := !openFound || len(missingFields) > 0
 	var googleErr error
 	if needsGoogle {
+		switch {
+		case openErr != nil:
+			log.Printf("Open Library metadata lookup for ISBN %s failed: %v; trying Google Books", isbn, openErr)
+		case !openFound:
+			log.Printf("Open Library metadata lookup for ISBN %s: book not found; trying Google Books", isbn)
+		default:
+			log.Printf("Open Library metadata lookup for ISBN %s returned incomplete data (missing: %s); trying Google Books", isbn, strings.Join(missingFields, ", "))
+		}
 		google, googleFound, err := s.lookupGoogleBooks(ctx, isbn)
 		googleErr = err
 		if googleFound {
@@ -60,6 +103,26 @@ func (s *Server) lookupMetadata(ctx context.Context, isbn string) (bookMetadata,
 		return bookMetadata{}, false, errors.Join(openErr, googleErr)
 	}
 	return bookMetadata{}, false, nil
+}
+
+func missingMetadataFields(metadata bookMetadata) []string {
+	missing := make([]string, 0, 5)
+	if metadata.Title == "" {
+		missing = append(missing, "title")
+	}
+	if metadata.Author == "" {
+		missing = append(missing, "author")
+	}
+	if metadata.PageCount == 0 {
+		missing = append(missing, "page_count")
+	}
+	if metadata.Description == "" {
+		missing = append(missing, "description")
+	}
+	if metadata.CoverURL == "" {
+		missing = append(missing, "cover")
+	}
+	return missing
 }
 
 func mergeMetadata(dst *bookMetadata, fallback bookMetadata) {
@@ -103,7 +166,10 @@ func (s *Server) lookupOpenLibrary(ctx context.Context, isbn string) (bookMetada
 		} `json:"cover"`
 	}
 	if err := s.getJSON(ctx, base+"/api/books?"+query.Encode(), &response); err != nil {
-		return bookMetadata{}, false, err
+		if errors.Is(err, errMetadataNotFound) {
+			return bookMetadata{}, false, nil
+		}
+		return bookMetadata{}, false, &metadataProviderError{Provider: "Open Library", Err: err}
 	}
 	entry, ok := response["ISBN:"+isbn]
 	if !ok {
@@ -185,7 +251,7 @@ func (s *Server) lookupGoogleBooks(ctx context.Context, isbn string) (bookMetada
 		if errors.Is(err, errMetadataNotFound) {
 			return bookMetadata{}, false, nil
 		}
-		return bookMetadata{}, false, err
+		return bookMetadata{}, false, &metadataProviderError{Provider: "Google Books", Err: err}
 	}
 	if len(response.Items) == 0 {
 		return bookMetadata{}, false, nil
@@ -223,14 +289,85 @@ func (s *Server) getJSON(ctx context.Context, target string, v any) error {
 		return errMetadataNotFound
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("metadata provider returned %s", response.Status)
+		return &metadataHTTPError{StatusCode: response.StatusCode}
 	}
 	reader := io.LimitReader(response.Body, maxMetadataBytes+1)
 	decoder := json.NewDecoder(reader)
 	if err := decoder.Decode(v); err != nil {
-		return fmt.Errorf("decode metadata: %w", err)
+		return &metadataDecodeError{Err: err}
 	}
 	return nil
+}
+
+func metadataLookupErrorMessage(err error) string {
+	parts := make([]string, 0, 2)
+	for _, providerErr := range metadataProviderErrors(err) {
+		parts = append(parts, providerErr.Provider+" — "+metadataFailureReason(providerErr.Err))
+	}
+	if len(parts) == 0 {
+		return "Не удалось получить данные из каталогов книг. Заполни поля вручную."
+	}
+	return "Не удалось получить данные: " + strings.Join(parts, "; ") + ". Заполни поля вручную."
+}
+
+func metadataProviderErrors(err error) []*metadataProviderError {
+	if err == nil {
+		return nil
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		var result []*metadataProviderError
+		for _, child := range joined.Unwrap() {
+			result = append(result, metadataProviderErrors(child)...)
+		}
+		return result
+	}
+	var providerErr *metadataProviderError
+	if errors.As(err, &providerErr) {
+		return []*metadataProviderError{providerErr}
+	}
+	return nil
+}
+
+func metadataFailureReason(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "превышено время ожидания"
+	}
+	if errors.Is(err, context.Canceled) {
+		return "запрос отменён"
+	}
+
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return "не удалось определить адрес сервиса"
+	}
+	var networkErr net.Error
+	if errors.As(err, &networkErr) && networkErr.Timeout() {
+		return "превышено время ожидания"
+	}
+
+	var httpErr *metadataHTTPError
+	if errors.As(err, &httpErr) {
+		switch {
+		case httpErr.StatusCode == http.StatusUnauthorized || httpErr.StatusCode == http.StatusForbidden:
+			return fmt.Sprintf("сервис отказал в доступе (HTTP %d)", httpErr.StatusCode)
+		case httpErr.StatusCode == http.StatusTooManyRequests:
+			return "превышен лимит запросов (HTTP 429)"
+		case httpErr.StatusCode >= 500:
+			return fmt.Sprintf("сервис временно недоступен (HTTP %d)", httpErr.StatusCode)
+		default:
+			return fmt.Sprintf("сервис вернул HTTP %d", httpErr.StatusCode)
+		}
+	}
+
+	var decodeErr *metadataDecodeError
+	if errors.As(err, &decodeErr) {
+		return "сервис вернул некорректный ответ"
+	}
+	var requestErr *url.Error
+	if errors.As(err, &requestErr) {
+		return "ошибка подключения"
+	}
+	return "неизвестная ошибка"
 }
 
 func descriptionValue(raw json.RawMessage) string {

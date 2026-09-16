@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -18,6 +19,7 @@ import {
 } from "../api.ts";
 import { Link } from "../ui/Link.tsx";
 import { bookLevels } from "../bookLevels.ts";
+import { CameraViewport, type CameraFailure } from "../scan/Scan.tsx";
 import styles from "./AdminBookForm.module.scss";
 
 const blankBook: BookInput = {
@@ -35,6 +37,7 @@ export function AdminBookForm() {
   const isNew = id === undefined;
   const isbnInput = useRef<HTMLInputElement>(null);
   const formElement = useRef<HTMLFormElement>(null);
+  const lookupRequest = useRef(0);
   const [book, setBook] = useState<Book | null>(null);
   const [form, setForm] = useState<BookInput>(blankBook);
   const [loading, setLoading] = useState(!isNew);
@@ -46,6 +49,11 @@ export function AdminBookForm() {
   const [lookupCover, setLookupCover] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanAttempt, setScanAttempt] = useState(0);
+  const [cameraFailure, setCameraFailure] = useState<CameraFailure | null>(
+    null,
+  );
 
   useEffect(() => {
     if (isNew) {
@@ -88,7 +96,21 @@ export function AdminBookForm() {
     };
   }, [localPreview]);
 
-  const cover = localPreview ?? lookupCover ?? book?.cover_url ?? null;
+  useEffect(() => {
+    if (!scanning) return;
+
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setScanning(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [scanning]);
+
+  const originalISBN = book?.isbn ?? "";
+  const cover =
+    localPreview ??
+    lookupCover ??
+    (form.isbn === originalISBN ? book?.cover_url : null);
   const descriptionLength = Array.from(form.description).length;
 
   const update = <K extends keyof BookInput>(key: K, value: BookInput[K]) => {
@@ -103,31 +125,78 @@ export function AdminBookForm() {
     setLookupError(null);
   };
 
-  const lookup = async () => {
-    if (!form.isbn.trim() || lookingUp) return;
-    setLookingUp(true);
-    setLookupError(null);
-    try {
-      const result = await api<BookLookup>("/admin/books/lookup", {
-        method: "POST",
-        body: { isbn: form.isbn },
-      });
-      setForm((current) => ({
-        ...current,
-        isbn: result.isbn,
-        title: current.title.trim() || result.title,
-        author: current.author.trim() || result.author,
-        page_count: current.page_count || result.page_count,
-        description: current.description.trim() || result.description,
-      }));
-      setLookupCover(result.cover_preview);
-      setLookupSource(sourceLabel(result.source));
-    } catch (err) {
-      setLookupError((err as ApiError).message);
-    } finally {
-      setLookingUp(false);
-    }
+  const openScanner = () => {
+    setCameraFailure(null);
+    setScanAttempt((attempt) => attempt + 1);
+    setScanning(true);
   };
+
+  const scanFailed = useCallback((failure: CameraFailure) => {
+    setCameraFailure(failure);
+  }, []);
+
+  const lookup = useCallback(
+    async (isbn = form.isbn, replace = false) => {
+      if (!isbn.trim() || (lookingUp && !replace)) return;
+      const request = ++lookupRequest.current;
+      setLookingUp(true);
+      setLookupError(null);
+      try {
+        const result = await api<BookLookup>("/admin/books/lookup", {
+          method: "POST",
+          body: { isbn },
+        });
+        if (request !== lookupRequest.current) return;
+        setForm((current) => ({
+          ...current,
+          isbn: result.isbn,
+          title: replace ? result.title : current.title.trim() || result.title,
+          author: replace
+            ? result.author
+            : current.author.trim() || result.author,
+          page_count: replace
+            ? result.page_count
+            : current.page_count || result.page_count,
+          description: replace
+            ? result.description
+            : current.description.trim() || result.description,
+        }));
+        setLookupCover(result.cover_preview);
+        setLookupSource(sourceLabel(result.source));
+      } catch (err) {
+        if (request === lookupRequest.current) {
+          setLookupError((err as ApiError).message);
+        }
+      } finally {
+        if (request === lookupRequest.current) setLookingUp(false);
+      }
+    },
+    [form.isbn, lookingUp],
+  );
+
+  const scannedISBN = useCallback(
+    (value: string) => {
+      setForm((current) =>
+        current.isbn === value
+          ? current
+          : {
+              ...current,
+              isbn: value,
+              title: "",
+              author: "",
+              page_count: 0,
+              description: "",
+            },
+      );
+      setLookupCover(null);
+      setLookupSource(null);
+      setLookupError(null);
+      setCameraFailure(null);
+      setScanning(false);
+      void lookup(value, true);
+    },
+    [lookup],
+  );
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -317,16 +386,19 @@ export function AdminBookForm() {
                     !event.ctrlKey
                   ) {
                     event.preventDefault();
-                    lookup();
+                    void lookup();
                   }
                 }}
               />
             </Field>
+            <button type="button" className={styles.scan} onClick={openScanner}>
+              Сканировать
+            </button>
             <button
               type="button"
               className={styles.lookup}
               disabled={!form.isbn.trim() || lookingUp}
-              onClick={lookup}
+              onClick={() => void lookup()}
             >
               {lookingUp ? "Ищем…" : "Найти по ISBN"}
             </button>
@@ -421,6 +493,74 @@ export function AdminBookForm() {
           <p className={styles.shortcut}>⌘/Ctrl + Enter — сохранить</p>
         </div>
       </form>
+
+      {scanning && (
+        <div
+          className={styles.scannerOverlay}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setScanning(false);
+          }}
+        >
+          <section
+            className={styles.scannerDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scanner-title"
+          >
+            <header className={styles.scannerHeader}>
+              <div>
+                <span className={styles.eyebrow}>ISBN книги</span>
+                <h2 id="scanner-title">Сканировать штрих-код</h2>
+              </div>
+              <button
+                type="button"
+                className={styles.closeScanner}
+                aria-label="Закрыть сканер"
+                onClick={() => setScanning(false)}
+              >
+                ×
+              </button>
+            </header>
+
+            {cameraFailure ? (
+              <div className={styles.cameraFailure} role="alert">
+                <strong>
+                  {cameraFailure === "denied"
+                    ? "Нет доступа к камере"
+                    : "Камера недоступна"}
+                </strong>
+                <p>
+                  {cameraFailure === "denied"
+                    ? "Разрешите сайту использовать камеру в настройках браузера или введите ISBN вручную."
+                    : "На этом устройстве не получилось открыть камеру. ISBN можно ввести вручную."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCameraFailure(null);
+                    setScanAttempt((attempt) => attempt + 1);
+                  }}
+                >
+                  Попробовать снова
+                </button>
+              </div>
+            ) : (
+              <div className={styles.scannerViewport}>
+                <CameraViewport
+                  key={scanAttempt}
+                  onDetected={scannedISBN}
+                  onFailure={scanFailed}
+                />
+              </div>
+            )}
+
+            <p className={styles.scannerHint}>
+              Наведите камеру на штрих-код ISBN на задней обложке. После
+              распознавания код появится в поле формы.
+            </p>
+          </section>
+        </div>
+      )}
     </section>
   );
 }

@@ -23,7 +23,7 @@ import {
 } from "./isbn.ts";
 
 type ScanMode = "camera" | "manual";
-type CameraFailure = "denied" | "unavailable";
+export type CameraFailure = "denied" | "unavailable";
 type BorrowAttempt =
   | { status: "pending"; isbn: string; source: ScanMode }
   | { status: "success"; result: BorrowResponse }
@@ -58,7 +58,7 @@ const releaseScanner = async (quagga: QuaggaJSStatic): Promise<void> => {
   }
 };
 
-function CameraViewport({
+export function CameraViewport({
   onDetected,
   onFailure,
 }: {
@@ -86,8 +86,10 @@ function CameraViewport({
 
         let previousCode = "";
         let matchingReads = 0;
+        let detectionComplete = false;
 
         detectedHandler = (scan) => {
+          if (detectionComplete) return;
           const value = isbnDigits(scan.codeResult.code ?? "");
           if (!isValidEan13(value)) return;
 
@@ -97,7 +99,10 @@ function CameraViewport({
             matchingReads = 1;
           }
 
-          if (matchingReads >= 2 && !disposed) onDetected(value);
+          if (matchingReads >= 2 && !disposed) {
+            detectionComplete = true;
+            onDetected(value);
+          }
         };
 
         await quagga.init({

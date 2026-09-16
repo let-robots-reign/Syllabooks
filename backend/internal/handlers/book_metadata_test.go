@@ -67,6 +67,14 @@ func TestLookupMetadataMergesGoogleFallback(t *testing.T) {
 	}
 }
 
+func TestMissingMetadataFields(t *testing.T) {
+	missing := missingMetadataFields(bookMetadata{Title: "Coraline", Author: "Neil Gaiman"})
+	want := []string{"page_count", "description", "cover"}
+	if strings.Join(missing, ",") != strings.Join(want, ",") {
+		t.Fatalf("missing fields = %v, want %v", missing, want)
+	}
+}
+
 func TestLookupMetadataFallsBackWhenOpenLibraryHasNoBook(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Host == "open.test" {
@@ -89,6 +97,39 @@ func TestLookupMetadataReportsProviderFailure(t *testing.T) {
 	_, found, err := s.lookupMetadata(context.Background(), "9780142410370")
 	if found || err == nil {
 		t.Fatalf("provider failure: found=%v err=%v", found, err)
+	}
+	message := metadataLookupErrorMessage(err)
+	if !strings.Contains(message, "Open Library — ошибка подключения") ||
+		!strings.Contains(message, "Google Books — ошибка подключения") {
+		t.Fatalf("provider failure message = %q", message)
+	}
+}
+
+func TestMetadataLookupErrorMessageExplainsProviderFailures(t *testing.T) {
+	err := errors.Join(
+		&metadataProviderError{Provider: "Open Library", Err: context.DeadlineExceeded},
+		&metadataProviderError{Provider: "Google Books", Err: &metadataHTTPError{StatusCode: http.StatusForbidden}},
+	)
+	message := metadataLookupErrorMessage(err)
+	if !strings.Contains(message, "Open Library — превышено время ожидания") ||
+		!strings.Contains(message, "Google Books — сервис отказал в доступе (HTTP 403)") {
+		t.Fatalf("failure message = %q", message)
+	}
+}
+
+func TestLookupMetadataTreatsProviderNotFoundAsMissingBook(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Status:     "404 Not Found",
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(`{}`)),
+		}, nil
+	})}
+	s := Server{HTTPClient: client, OpenLibraryBaseURL: "https://open.test", GoogleBooksBaseURL: "https://google.test"}
+	_, found, err := s.lookupMetadata(context.Background(), "9780142410370")
+	if found || err != nil {
+		t.Fatalf("missing book: found=%v err=%v", found, err)
 	}
 }
 

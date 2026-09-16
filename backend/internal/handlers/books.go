@@ -217,7 +217,8 @@ func (s *Server) lookupBookMetadata(w http.ResponseWriter, r *http.Request, _ ge
 	}
 	metadata, found, err := s.lookupMetadata(r.Context(), *isbn)
 	if err != nil && !found {
-		writeError(w, http.StatusBadGateway, "Не удалось связаться с каталогами книг. Заполни поля вручную.")
+		log.Printf("book metadata lookup for %s: %v", *isbn, err)
+		writeError(w, http.StatusBadGateway, metadataLookupErrorMessage(err))
 		return
 	}
 	if !found {
