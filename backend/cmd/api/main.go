@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -41,6 +42,14 @@ func run() error {
 	bookCoversDir := os.Getenv("BOOK_COVERS_DIR")
 	if bookCoversDir == "" {
 		bookCoversDir = "data/covers"
+	}
+	loanDays := int32(21)
+	if value := os.Getenv("LOAN_DAYS"); value != "" {
+		parsed, err := strconv.ParseInt(value, 10, 32)
+		if err != nil || parsed <= 0 {
+			return errors.New("LOAN_DAYS must be a positive integer")
+		}
+		loanDays = int32(parsed)
 	}
 
 	var yandex, vk *handlers.Provider
@@ -83,6 +92,7 @@ func run() error {
 
 	srv := &handlers.Server{
 		Pool:               pool,
+		LoanDays:           loanDays,
 		Yandex:             yandex,
 		VK:                 vk,
 		SecureCookies:      strings.HasPrefix(publicURL, "https://"),

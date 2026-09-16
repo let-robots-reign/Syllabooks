@@ -7,6 +7,11 @@ import {
 } from "react";
 import type { QuaggaJSResultObject, QuaggaJSStatic } from "@ericblade/quagga2";
 import clsx from "clsx";
+import { useNavigate } from "react-router-dom";
+import { api, ApiError, type BorrowResponse } from "../api.ts";
+import { bookLevel } from "../bookLevels.ts";
+import { BookCover, LevelBars } from "../catalog/BookVisuals.tsx";
+import { formatDueDate, pageWord } from "../catalog/presentation.ts";
 import { Button, ButtonLink } from "../ui/Button.tsx";
 import { Link } from "../ui/Link.tsx";
 import styles from "./Scan.module.scss";
@@ -19,7 +24,10 @@ import {
 
 type ScanMode = "camera" | "manual";
 type CameraFailure = "denied" | "unavailable";
-type ScanResult = { value: string; source: ScanMode };
+type BorrowAttempt =
+  | { status: "pending"; isbn: string; source: ScanMode }
+  | { status: "success"; result: BorrowResponse }
+  | { status: "error"; isbn: string; source: ScanMode; error: ApiError };
 
 const isWideViewport = (): boolean => {
   return window.matchMedia("(min-width: 481px)").matches;
@@ -164,13 +172,28 @@ function CameraViewport({
   );
 }
 
-function ScreenHeader() {
+function ScreenHeader({ closeDisabled = false }: { closeDisabled?: boolean }) {
   return (
     <header className={styles.header}>
       <div className={styles.screenTitle}>Взять книгу</div>
-      <Link href="/" className={styles.close} aria-label="Закрыть сканирование">
-        ×
-      </Link>
+      {closeDisabled ? (
+        <button
+          type="button"
+          className={styles.close}
+          aria-label="Выдача книги выполняется"
+          disabled
+        >
+          ×
+        </button>
+      ) : (
+        <Link
+          href="/"
+          className={styles.close}
+          aria-label="Закрыть сканирование"
+        >
+          ×
+        </Link>
+      )}
     </header>
   );
 }
@@ -248,15 +271,22 @@ const keypad = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0"];
 function ManualScreen({
   onCamera,
   onAccepted,
+  initialValue = "",
 }: {
   onCamera: () => void;
   onAccepted: (value: string) => void;
+  initialValue?: string;
 }) {
-  const [digits, setDigits] = useState("");
+  const initialDigits = isbnDigits(initialValue);
+  const [digits, setDigits] = useState(initialDigits);
+  const lastAccepted = useRef(initialDigits);
   const error = manualIsbnError(digits);
 
   useEffect(() => {
-    if (digits.length === 13 && !error) onAccepted(digits);
+    if (digits.length === 13 && !error && digits !== lastAccepted.current) {
+      lastAccepted.current = digits;
+      onAccepted(digits);
+    }
   }, [digits, error, onAccepted]);
 
   const update = (value: string) => setDigits(isbnDigits(value));
@@ -379,76 +409,289 @@ function CameraErrorScreen({
   );
 }
 
-function ResultScreen({
-  result,
-  onAgain,
-}: {
-  result: ScanResult;
-  onAgain: () => void;
-}) {
+function PendingScreen() {
   return (
     <div className={clsx(styles.screen, styles.paperScreen)}>
       <div className={styles.top}>
-        <ScreenHeader />
+        <ScreenHeader closeDisabled />
       </div>
-      <div className={styles.resultContent} aria-live="polite">
-        <div className={styles.eyebrow}>
-          {result.source === "camera" ? "Штрих-код распознан" : "ISBN введён"}
+      <div className={styles.pending} role="status" aria-live="polite">
+        <div className={styles.pendingMark} aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
-        <h1>EAN-13 найден</h1>
-        <div className={styles.resultCode}>{formatIsbn(result.value)}</div>
-        <p>
-          Результат этого технического теста. Книга пока не записана на тебя.
-        </p>
+        <h1>Записываем книгу…</h1>
+        <p>Это займёт пару секунд.</p>
       </div>
-      <footer className={styles.resultActions}>
-        <Button onClick={onAgain}>Ещё раз</Button>
-        <ButtonLink href="/" variant="quiet">
-          Закрыть
-        </ButtonLink>
+    </div>
+  );
+}
+
+function SuccessScreen({
+  result,
+  onDone,
+}: {
+  result: BorrowResponse;
+  onDone: () => void;
+}) {
+  const level = bookLevel(result.book.level);
+
+  return (
+    <div className={clsx(styles.screen, styles.paperScreen)}>
+      <div className={styles.successContent} aria-live="polite">
+        <div className={styles.successEyebrow}>Записано на тебя</div>
+        <h1>
+          Книга у тебя
+          <br />
+          до {formatDueDate(result.due_at)}
+        </h1>
+
+        <div className={styles.successBook}>
+          <div className={styles.successCover}>
+            <BookCover book={result.book} />
+          </div>
+          <div className={styles.successBookInfo}>
+            <div
+              className={clsx(
+                styles.successLevel,
+                styles[`${result.book.level}Text`],
+              )}
+            >
+              <LevelBars level={result.book.level} />
+              <span>{level.label}</span>
+            </div>
+            <h2>{result.book.title}</h2>
+            <p>{result.book.author}</p>
+            <div className={styles.successPages}>
+              <strong>{result.book.page_count}</strong>
+              <span>{pageWord(result.book.page_count)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.loanSlip}>
+          <div className={styles.eyebrow}>Формуляр</div>
+          <dl>
+            <div>
+              <dt>Взято</dt>
+              <dd>{formatDueDate(result.taken_at)}</dd>
+            </div>
+            <div>
+              <dt>Вернуть</dt>
+              <dd>{formatDueDate(result.due_at)}</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+      <footer className={styles.bottomAction}>
+        <Button onClick={onDone}>Готово</Button>
       </footer>
     </div>
   );
 }
 
+function BorrowErrorScreen({
+  attempt,
+  onRetry,
+  onManual,
+  onCamera,
+}: {
+  attempt: Extract<BorrowAttempt, { status: "error" }>;
+  onRetry: () => void;
+  onManual: () => void;
+  onCamera: () => void;
+}) {
+  const { error, source } = attempt;
+  const due = error.dueAt ? formatDueDate(error.dueAt) : null;
+
+  let eyebrow = "Не получилось взять книгу";
+  let title = "Попробуй ещё раз";
+  let lead = error.message;
+  let actions = (
+    <>
+      <Button onClick={onRetry}>Повторить</Button>
+      <Button
+        variant="secondary"
+        onClick={source === "camera" ? onManual : onCamera}
+      >
+        {source === "camera" ? "Ввести ISBN" : "Сканировать камерой"}
+      </Button>
+    </>
+  );
+
+  if (error.code === "book_not_found" || error.code === "invalid_isbn") {
+    eyebrow = "Штрих-код не найден";
+    title = "Такого кода нет в каталоге";
+    lead =
+      error.code === "invalid_isbn"
+        ? "Проверь 13 цифр ISBN под штрих-кодом на задней обложке."
+        : "Возможно, книгу ещё не добавили. Проверь ISBN или попробуй отсканировать ещё раз.";
+    actions = (
+      <>
+        <Button onClick={onManual}>
+          {source === "manual" ? "Исправить ISBN" : "Ввести ISBN"}
+        </Button>
+        <Button variant="secondary" onClick={onCamera}>
+          Ещё раз камерой
+        </Button>
+      </>
+    );
+  } else if (error.code === "book_unavailable") {
+    eyebrow = "Книгу уже взяли";
+    title = error.book
+      ? `${error.book.title} у ${error.borrowerName ?? "другого читателя"}${due ? ` — до ${due}` : ""}`
+      : "Эту книгу уже взяли";
+    lead = error.borrowerName
+      ? `Спроси у ${error.borrowerName}, дочитана ли книга: возможно, её вернут раньше.`
+      : "Выбери другую книгу на полке.";
+    actions = <ButtonLink href="/">Выбрать другую книгу</ButtonLink>;
+  } else if (error.code === "loan_limit") {
+    eyebrow = "У тебя уже есть книга";
+    title = error.book
+      ? `Сначала верни ${error.book.title}`
+      : "Сначала верни книгу";
+    lead = `Правило клуба: одна книга на руках.${due ? ` Срок — до ${due}, вернуть можно в любой день.` : ""}`;
+    actions = <ButtonLink href="/">Вернуться в каталог</ButtonLink>;
+  } else if (error.code === "book_lost") {
+    eyebrow = "Книга не выдаётся";
+    title = error.book
+      ? `${error.book.title} отмечена как потерянная`
+      : "Книга отмечена как потерянная";
+    lead = "Обратись к учителю: возможно, статус книги нужно исправить.";
+    actions = <ButtonLink href="/">Вернуться в каталог</ButtonLink>;
+  } else if (error.status === 0) {
+    eyebrow = "Нет связи с сервером";
+    title = "Не удалось проверить выдачу";
+    lead =
+      "ISBN сохранён. Проверь интернет и повтори запрос — если книга уже записалась, появится то же подтверждение.";
+  } else if (error.status === 401) {
+    eyebrow = "Сессия закончилась";
+    title = "Нужно войти заново";
+    lead = "Обнови страницу и войди, затем повтори сканирование.";
+    actions = (
+      <Button onClick={() => window.location.reload()}>
+        Обновить страницу
+      </Button>
+    );
+  }
+
+  return (
+    <div className={clsx(styles.screen, styles.paperScreen)}>
+      <div className={styles.top}>
+        <ScreenHeader />
+      </div>
+      <div className={styles.borrowError} role="alert">
+        <div className={styles.eyebrow}>{eyebrow}</div>
+        <div className={styles.errorRule}>
+          <h1>{title}</h1>
+          <p>{lead}</p>
+        </div>
+      </div>
+      <footer className={styles.resultActions}>{actions}</footer>
+    </div>
+  );
+}
+
 export function Scan() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<ScanMode>(() =>
     isWideViewport() ? "manual" : "camera",
   );
   const [failure, setFailure] = useState<CameraFailure | null>(null);
-  const [result, setResult] = useState<ScanResult | null>(null);
+  const [attempt, setAttempt] = useState<BorrowAttempt | null>(null);
+  const [manualInitial, setManualInitial] = useState("");
+  const submissionLocked = useRef(false);
+
+  const submitISBN = useCallback((isbn: string, source: ScanMode) => {
+    if (submissionLocked.current) return;
+    submissionLocked.current = true;
+    setAttempt({ status: "pending", isbn, source });
+
+    api<BorrowResponse>("/loans", { method: "POST", body: { isbn } }).then(
+      (result) => setAttempt({ status: "success", result }),
+      (error: unknown) => {
+        const apiError =
+          error instanceof ApiError
+            ? error
+            : new ApiError(0, "Не получилось связаться с сервером.");
+        setAttempt({ status: "error", isbn, source, error: apiError });
+      },
+    );
+  }, []);
 
   const showCamera = useCallback(() => {
     setFailure(null);
-    setResult(null);
+    setAttempt(null);
+    setManualInitial("");
+    submissionLocked.current = false;
     setMode("camera");
   }, []);
 
   const showManual = useCallback(() => {
     setFailure(null);
-    setResult(null);
+    setAttempt(null);
+    setManualInitial("");
+    submissionLocked.current = false;
     setMode("manual");
   }, []);
 
-  const cameraDetected = useCallback((value: string) => {
-    setResult({ value, source: "camera" });
-  }, []);
+  const cameraDetected = useCallback(
+    (value: string) => {
+      submitISBN(value, "camera");
+    },
+    [submitISBN],
+  );
 
-  const manualAccepted = useCallback((value: string) => {
-    setResult({ value, source: "manual" });
-  }, []);
+  const manualAccepted = useCallback(
+    (value: string) => {
+      submitISBN(value, "manual");
+    },
+    [submitISBN],
+  );
 
   const cameraFailed = useCallback((nextFailure: CameraFailure) => {
     setFailure(nextFailure);
   }, []);
 
-  const tryAgain = useCallback(() => {
-    setResult(null);
-    setFailure(null);
-  }, []);
+  const retryBorrow = useCallback(() => {
+    if (!attempt || attempt.status !== "error") return;
+    const { isbn, source } = attempt;
+    submissionLocked.current = false;
+    submitISBN(isbn, source);
+  }, [attempt, submitISBN]);
 
-  if (result) {
-    return <ResultScreen result={result} onAgain={tryAgain} />;
+  const editManualISBN = useCallback(() => {
+    const isbn = attempt && attempt.status === "error" ? attempt.isbn : "";
+    setManualInitial(isbn);
+    setAttempt(null);
+    setFailure(null);
+    submissionLocked.current = false;
+    setMode("manual");
+  }, [attempt]);
+
+  if (attempt?.status === "pending") {
+    return <PendingScreen />;
+  }
+
+  if (attempt?.status === "success") {
+    return (
+      <SuccessScreen
+        result={attempt.result}
+        onDone={() => navigate("/", { replace: true })}
+      />
+    );
+  }
+
+  if (attempt?.status === "error") {
+    return (
+      <BorrowErrorScreen
+        attempt={attempt}
+        onRetry={retryBorrow}
+        onManual={editManualISBN}
+        onCamera={showCamera}
+      />
+    );
   }
 
   if (mode === "camera" && failure) {
@@ -456,7 +699,13 @@ export function Scan() {
   }
 
   if (mode === "manual") {
-    return <ManualScreen onCamera={showCamera} onAccepted={manualAccepted} />;
+    return (
+      <ManualScreen
+        initialValue={manualInitial}
+        onCamera={showCamera}
+        onAccepted={manualAccepted}
+      />
+    );
   }
 
   return (

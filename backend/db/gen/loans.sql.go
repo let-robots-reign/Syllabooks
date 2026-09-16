@@ -7,6 +7,7 @@ package gen
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -33,6 +34,105 @@ func (q *Queries) CreateLoan(ctx context.Context, arg CreateLoanParams) (Loan, e
 		arg.LoanDays,
 		arg.CreatedByAdmin,
 	)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.UserID,
+		&i.TakenAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.ReturnReason,
+		&i.ShelfScanOk,
+		&i.BookScanOk,
+		&i.CreatedByAdmin,
+	)
+	return i, err
+}
+
+const getBookByISBN = `-- name: GetBookByISBN :one
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description
+FROM books
+WHERE isbn = $1
+`
+
+func (q *Queries) GetBookByISBN(ctx context.Context, isbn *string) (Book, error) {
+	row := q.db.QueryRow(ctx, getBookByISBN, isbn)
+	var i Book
+	err := row.Scan(
+		&i.ID,
+		&i.Isbn,
+		&i.Title,
+		&i.Author,
+		&i.Level,
+		&i.PageCount,
+		&i.CoverUrl,
+		&i.IsLost,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.Description,
+	)
+	return i, err
+}
+
+const getOpenLoanForBook = `-- name: GetOpenLoanForBook :one
+SELECT l.id,
+       l.book_id,
+       l.user_id,
+       l.taken_at,
+       l.due_at,
+       l.returned_at,
+       l.return_reason,
+       l.shelf_scan_ok,
+       l.book_scan_ok,
+       l.created_by_admin,
+       u.display_name AS borrower_name
+FROM loans l
+JOIN users u ON u.id = l.user_id
+WHERE l.book_id = $1 AND l.returned_at IS NULL
+`
+
+type GetOpenLoanForBookRow struct {
+	ID             uuid.UUID
+	BookID         uuid.UUID
+	UserID         uuid.UUID
+	TakenAt        time.Time
+	DueAt          time.Time
+	ReturnedAt     *time.Time
+	ReturnReason   *ReturnReason
+	ShelfScanOk    *bool
+	BookScanOk     *bool
+	CreatedByAdmin bool
+	BorrowerName   string
+}
+
+func (q *Queries) GetOpenLoanForBook(ctx context.Context, bookID uuid.UUID) (GetOpenLoanForBookRow, error) {
+	row := q.db.QueryRow(ctx, getOpenLoanForBook, bookID)
+	var i GetOpenLoanForBookRow
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.UserID,
+		&i.TakenAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.ReturnReason,
+		&i.ShelfScanOk,
+		&i.BookScanOk,
+		&i.CreatedByAdmin,
+		&i.BorrowerName,
+	)
+	return i, err
+}
+
+const getOpenLoanForUser = `-- name: GetOpenLoanForUser :one
+SELECT id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin
+FROM loans
+WHERE user_id = $1 AND returned_at IS NULL
+`
+
+func (q *Queries) GetOpenLoanForUser(ctx context.Context, userID uuid.UUID) (Loan, error) {
+	row := q.db.QueryRow(ctx, getOpenLoanForUser, userID)
 	var i Loan
 	err := row.Scan(
 		&i.ID,

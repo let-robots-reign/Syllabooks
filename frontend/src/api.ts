@@ -47,12 +47,42 @@ export type BookLookup = {
   source: "openlibrary" | "google" | "openlibrary+google";
 };
 
+export type BorrowResponse = {
+  id: string;
+  taken_at: string;
+  due_at: string;
+  book: Book;
+};
+
+export type BorrowErrorCode =
+  | "invalid_isbn"
+  | "book_not_found"
+  | "book_lost"
+  | "book_unavailable"
+  | "loan_limit";
+
+type ErrorPayload = {
+  error?: string;
+  code?: BorrowErrorCode;
+  book?: Book;
+  borrower_name?: string;
+  due_at?: string;
+};
+
 export class ApiError extends Error {
   status: number;
+  code?: BorrowErrorCode;
+  book?: Book;
+  borrowerName?: string;
+  dueAt?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, details: ErrorPayload = {}) {
     super(message);
     this.status = status;
+    this.code = details.code;
+    this.book = details.book;
+    this.borrowerName = details.borrower_name;
+    this.dueAt = details.due_at;
   }
 }
 
@@ -75,7 +105,7 @@ export const api = async <T>(
     });
     return response.data;
   } catch (error) {
-    if (!axios.isAxiosError<{ error?: string }>(error)) throw error;
+    if (!axios.isAxiosError<ErrorPayload>(error)) throw error;
 
     const status = error.response?.status ?? 0;
     if (status === 0) {
@@ -84,9 +114,11 @@ export const api = async <T>(
         "Нет связи с сервером. Проверь интернет и попробуй ещё раз.",
       );
     }
+    const details = error.response?.data ?? {};
     throw new ApiError(
       status,
-      error.response?.data?.error ?? "Что-то пошло не так. Попробуй ещё раз.",
+      details.error ?? "Что-то пошло не так. Попробуй ещё раз.",
+      details,
     );
   }
 };

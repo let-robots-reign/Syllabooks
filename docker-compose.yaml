@@ -36,6 +36,7 @@ services:
       VK_CLIENT_ID: ${VK_CLIENT_ID:-}
       GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
       BOOK_COVERS_DIR: /data/book-covers
+      LOAN_DAYS: ${LOAN_DAYS:-21}
       # Lets `docker compose exec backend go tool goose <command>` run without flags.
       GOOSE_DRIVER: postgres
       GOOSE_DBSTRING: *database-url

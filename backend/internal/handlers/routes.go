@@ -12,6 +12,8 @@ import (
 // Server holds what the handlers share. Handlers call sqlc queries directly.
 type Server struct {
 	Pool *pgxpool.Pool
+	// LoanDays is the borrowing period. Values <= 0 use the 21-day default.
+	LoanDays int32
 	// OAuth providers, each nil when not configured.
 	Yandex, VK *Provider
 	// SecureCookies marks cookies Secure; true when the app is served over HTTPS.
@@ -44,6 +46,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/me", s.requireUser(s.me))
 	mux.HandleFunc("GET /api/books", s.requireUser(s.listCatalog))
 	mux.HandleFunc("GET /api/books/{id}", s.requireUser(s.getCatalogBook))
+	mux.HandleFunc("POST /api/loans", s.requireUser(s.borrowBook))
 
 	mux.HandleFunc("GET /api/admin/books", s.requireAdmin(s.listBooks))
 	mux.HandleFunc("POST /api/admin/books", s.requireAdmin(s.createBook))

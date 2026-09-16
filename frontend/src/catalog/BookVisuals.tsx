@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import type { BookLevel, CatalogBook } from "../api.ts";
+import type { Book, BookLevel, CatalogBook } from "../api.ts";
 import { bookLevel } from "../bookLevels.ts";
 import { formatDueDate } from "./presentation.ts";
 import styles from "./BookVisuals.module.scss";
@@ -26,7 +26,7 @@ export function BookCover({
   hero = false,
   showLoan = false,
 }: {
-  book: CatalogBook;
+  book: Book | CatalogBook;
   hero?: boolean;
   showLoan?: boolean;
 }) {
@@ -46,7 +46,7 @@ export function BookCover({
         </div>
       )}
       <span className={clsx(styles.spine, styles[book.level])} />
-      {showLoan && book.current_loan && (
+      {showLoan && "current_loan" in book && book.current_loan && (
         <>
           <span className={styles.veil} />
           <span className={styles.loan}>
