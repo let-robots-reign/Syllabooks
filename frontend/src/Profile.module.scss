@@ -1,0 +1,248 @@
+.profile {
+  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
+}
+
+.heading {
+  margin-top: 18px;
+
+  h1 {
+    font-family: var(--font-serif);
+    font-size: var(--text-page);
+    font-weight: 500;
+    line-height: 1.14;
+    text-wrap: pretty;
+  }
+
+  p {
+    margin-top: var(--space-1);
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+}
+
+.section,
+.historySection {
+  padding-top: var(--space-4);
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--color-ink);
+}
+
+.eyebrow {
+  color: var(--color-muted);
+  font-size: var(--text-eyebrow);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.currentBook {
+  display: flex;
+  gap: var(--space-4);
+  margin: 14px 0 var(--space-4);
+}
+
+.currentCover {
+  width: 104px;
+  flex: none;
+}
+
+.currentDetails {
+  min-width: 0;
+  flex: 1;
+
+  h3 {
+    overflow-wrap: anywhere;
+    font-family: var(--font-brand);
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1.12;
+    text-wrap: pretty;
+  }
+}
+
+.bookMeta {
+  margin-top: var(--space-1);
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.due {
+  display: flex;
+  flex-direction: column;
+  padding-left: 10px;
+  margin-top: var(--space-3);
+  border-left: 2px solid var(--color-spine);
+
+  strong {
+    font-family: var(--font-serif);
+    font-size: var(--text-title);
+    font-weight: 600;
+  }
+
+  span {
+    color: var(--color-ink-soft);
+    font-size: var(--text-meta);
+  }
+}
+
+.overdue {
+  border-left-color: var(--color-brick);
+
+  strong,
+  span {
+    color: var(--level-red-ink);
+  }
+}
+
+.emptyCurrent,
+.emptyHistory,
+.error {
+  padding: var(--space-5);
+  margin-top: var(--space-3);
+  background: var(--color-sand);
+
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    font-size: var(--text-title);
+    font-weight: 500;
+  }
+
+  p {
+    margin: var(--space-1) 0 var(--space-4);
+    color: var(--color-ink-soft);
+  }
+}
+
+.stats {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  margin-top: var(--space-2);
+
+  > strong {
+    color: var(--color-spine);
+    font-family: var(--font-serif);
+    font-size: 44px;
+    font-weight: 600;
+    line-height: 0.9;
+  }
+
+  p {
+    padding-bottom: 3px;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.3;
+  }
+
+  span {
+    display: block;
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+}
+
+.historySection {
+  border-top-color: var(--color-rule);
+}
+
+.history {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--color-rule);
+}
+
+.historyRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.historySpine {
+  width: 5px;
+  height: 40px;
+  flex: none;
+}
+
+.green {
+  background: var(--level-green);
+}
+
+.yellow {
+  background: var(--level-yellow);
+}
+
+.red {
+  background: var(--level-red);
+}
+
+.historyBook {
+  min-width: 0;
+  flex: 1;
+
+  h3 {
+    overflow-wrap: anywhere;
+    font-family: var(--font-brand);
+    font-size: var(--text-book);
+    font-weight: 500;
+    line-height: 1.15;
+    text-wrap: pretty;
+  }
+
+  p {
+    margin-top: 3px;
+    color: var(--color-muted);
+    font-size: var(--text-meta);
+  }
+}
+
+.reason {
+  max-width: 112px;
+  flex: none;
+  padding-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.finished {
+  color: var(--level-green-ink);
+  font-weight: 500;
+}
+
+.privacyNote {
+  margin-top: var(--space-4);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.loading {
+  padding: var(--space-10) var(--space-5);
+  margin-top: var(--space-6);
+  background: var(--color-sand);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.error {
+  margin-top: var(--space-6);
+  text-align: center;
+}
+
+.signOut {
+  padding-top: var(--space-4);
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--color-rule);
+}
+
+@media (max-width: 340px) {
+  .currentCover {
+    width: 88px;
+  }
+
+  .reason {
+    max-width: 88px;
+  }
+}

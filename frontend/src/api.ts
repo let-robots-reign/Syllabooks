@@ -68,6 +68,16 @@ export type LoanDetail = {
   book: Book;
 };
 
+export type ProfileResponse = {
+  joined_at: string;
+  current_loan: LoanDetail | null;
+  history: LoanDetail[];
+  stats: {
+    finished_books: number;
+    pages_read: number;
+  };
+};
+
 export type FinishCelebration = {
   class_finished_count: number;
   is_first_book: boolean;
