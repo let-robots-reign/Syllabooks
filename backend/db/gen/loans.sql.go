@@ -51,6 +51,20 @@ func (q *Queries) CompleteReturn(ctx context.Context, arg CompleteReturnParams) 
 	return i, err
 }
 
+const countFinishedBooksForUser = `-- name: CountFinishedBooksForUser :one
+SELECT count(*)
+FROM loans
+WHERE user_id = $1
+  AND return_reason = 'finished'
+`
+
+func (q *Queries) CountFinishedBooksForUser(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countFinishedBooksForUser, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLoan = `-- name: CreateLoan :one
 INSERT INTO loans (book_id, user_id, due_at, created_by_admin)
 VALUES ($1, $2, now() + $3::integer * interval '1 day', $4)

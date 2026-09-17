@@ -143,8 +143,10 @@ func TestReturnAuditFlagsAndIdempotency(t *testing.T) {
 
 func TestReturnReasonIsValidatedAndIdempotent(t *testing.T) {
 	env := newTestEnv(t, Server{ShelfCode: "SHELF-403"})
-	_, code := env.newCodeUser(t)
+	userID, code := env.newCodeUser(t)
 	token := env.login(t, code, "читатель")
+	_, otherCode := env.newCodeUser(t)
+	otherToken := env.login(t, otherCode, "другой читатель")
 	book := newBorrowTestBook(t, env, randomTestISBN(), "Finished Book")
 	status, created := bookRequest[borrowResponse](t, env, http.MethodPost, "/api/loans", token, map[string]string{"isbn": *book.Isbn})
 	if status != http.StatusCreated {
@@ -165,13 +167,28 @@ func TestReturnReasonIsValidatedAndIdempotent(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("return status = %d", status)
 	}
-	status, _ = bookRequest[map[string]any](t, env, http.MethodPost, path+"/return-reason", token, map[string]string{"reason": "finished"})
-	if status != http.StatusNoContent {
-		t.Fatalf("set reason status = %d, want 204", status)
+	status, _ = bookRequest[map[string]any](t, env, http.MethodPost, path+"/return-reason", otherToken, map[string]string{"reason": "finished"})
+	if status != http.StatusNotFound {
+		t.Fatalf("other user's reason status = %d, want 404", status)
 	}
-	status, _ = bookRequest[map[string]any](t, env, http.MethodPost, path+"/return-reason", token, map[string]string{"reason": "finished"})
-	if status != http.StatusNoContent {
-		t.Fatalf("same reason retry status = %d, want 204", status)
+
+	var classBefore int64
+	if err := env.pool.QueryRow(t.Context(), "SELECT count(*) FROM loans WHERE return_reason = 'finished'").Scan(&classBefore); err != nil {
+		t.Fatal(err)
+	}
+	status, first := bookRequest[returnReasonResponse](t, env, http.MethodPost, path+"/return-reason", token, map[string]string{"reason": "finished"})
+	if status != http.StatusOK || first.Celebration == nil {
+		t.Fatalf("set reason: status=%d body=%+v", status, first)
+	}
+	if first.Loan.ID.String() != created.ID || first.Loan.ReturnReason == nil || *first.Loan.ReturnReason != "finished" {
+		t.Fatalf("response loan = %+v", first.Loan)
+	}
+	if first.Celebration.ClassFinishedCount != classBefore+1 || !first.Celebration.IsFirstBook {
+		t.Fatalf("first celebration = %+v, class before=%d", first.Celebration, classBefore)
+	}
+	status, retry := bookRequest[returnReasonResponse](t, env, http.MethodPost, path+"/return-reason", token, map[string]string{"reason": "finished"})
+	if status != http.StatusOK || retry.Celebration == nil || retry.Celebration.ClassFinishedCount != first.Celebration.ClassFinishedCount || !retry.Celebration.IsFirstBook {
+		t.Fatalf("same reason retry: status=%d body=%+v", status, retry)
 	}
 	status, conflict := bookRequest[map[string]any](t, env, http.MethodPost, path+"/return-reason", token, map[string]string{"reason": "boring"})
 	if status != http.StatusConflict || conflict["code"] != "return_reason_set" {
@@ -184,6 +201,46 @@ func TestReturnReasonIsValidatedAndIdempotent(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("finished count for loan = %d, want 1", count)
+	}
+
+	secondBook := newBorrowTestBook(t, env, randomTestISBN(), "Second Finished Book")
+	status, second := bookRequest[borrowResponse](t, env, http.MethodPost, "/api/loans", token, map[string]string{"isbn": *secondBook.Isbn})
+	if status != http.StatusCreated {
+		t.Fatalf("second borrow status = %d", status)
+	}
+	secondPath := "/api/loans/" + second.ID
+	status, _ = bookRequest[loanDetailResponse](t, env, http.MethodPost, secondPath+"/return", token, returnBody("scan", "SHELF-403", "scan", *secondBook.Isbn))
+	if status != http.StatusOK {
+		t.Fatalf("second return status = %d", status)
+	}
+	status, subsequent := bookRequest[returnReasonResponse](t, env, http.MethodPost, secondPath+"/return-reason", token, map[string]string{"reason": "finished"})
+	if status != http.StatusOK || subsequent.Celebration == nil || subsequent.Celebration.IsFirstBook {
+		t.Fatalf("subsequent celebration: status=%d body=%+v", status, subsequent)
+	}
+	if subsequent.Celebration.ClassFinishedCount != first.Celebration.ClassFinishedCount+1 {
+		t.Fatalf("subsequent class count = %d, want %d", subsequent.Celebration.ClassFinishedCount, first.Celebration.ClassFinishedCount+1)
+	}
+
+	nonFinishedBook := newBorrowTestBook(t, env, randomTestISBN(), "Returned Unfinished")
+	status, nonFinished := bookRequest[borrowResponse](t, env, http.MethodPost, "/api/loans", token, map[string]string{"isbn": *nonFinishedBook.Isbn})
+	if status != http.StatusCreated {
+		t.Fatalf("non-finished borrow status = %d", status)
+	}
+	nonFinishedPath := "/api/loans/" + nonFinished.ID
+	status, _ = bookRequest[loanDetailResponse](t, env, http.MethodPost, nonFinishedPath+"/return", token, returnBody("scan", "SHELF-403", "scan", *nonFinishedBook.Isbn))
+	if status != http.StatusOK {
+		t.Fatalf("non-finished return status = %d", status)
+	}
+	status, ordinary := bookRequest[returnReasonResponse](t, env, http.MethodPost, nonFinishedPath+"/return-reason", token, map[string]string{"reason": "boring"})
+	if status != http.StatusOK || ordinary.Celebration != nil || ordinary.Loan.ReturnReason == nil || *ordinary.Loan.ReturnReason != "boring" {
+		t.Fatalf("ordinary reason: status=%d body=%+v", status, ordinary)
+	}
+	var userFinished int64
+	if err := env.pool.QueryRow(t.Context(), "SELECT count(*) FROM loans WHERE user_id = $1 AND return_reason = 'finished'", userID).Scan(&userFinished); err != nil {
+		t.Fatal(err)
+	}
+	if userFinished != 2 {
+		t.Fatalf("user finished count = %d, want 2", userFinished)
 	}
 }
 

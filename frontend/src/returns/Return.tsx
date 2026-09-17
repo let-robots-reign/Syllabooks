@@ -11,14 +11,20 @@ import { useNavigate } from "react-router-dom";
 import {
   api,
   ApiError,
+  type FinishCelebration,
   type LoanDetail,
   type ReturnEvidence,
   type ReturnMethod,
   type ReturnReason,
+  type ReturnReasonResponse,
 } from "../api.ts";
 import { rememberAuthReturnPath } from "../authResume.ts";
 import { BookCover } from "../catalog/BookVisuals.tsx";
-import { formatDueDate, pageWord } from "../catalog/presentation.ts";
+import {
+  booksReadWord,
+  formatDueDate,
+  pageWord,
+} from "../catalog/presentation.ts";
 import { CameraViewport, type CameraFailure } from "../scan/Scan.tsx";
 import { formatIsbn, isbnDigits, manualIsbnError } from "../scan/isbn.ts";
 import { Button } from "../ui/Button.tsx";
@@ -39,7 +45,8 @@ type Phase =
   | "returning"
   | "return-error"
   | "reason"
-  | "saving-reason";
+  | "saving-reason"
+  | "celebration";
 
 const skippedEvidence = (): ReturnEvidence => ({
   method: "skipped",
@@ -52,6 +59,12 @@ type PendingReason = {
 };
 
 const pendingReasonKey = "syllabooks:pending-return-reason";
+
+const finishDate = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
 const readPendingReason = (): PendingReason | null => {
   try {
@@ -659,6 +672,89 @@ function ReasonScreen({
   );
 }
 
+function CelebrationScreen({
+  loan,
+  celebration,
+  onNext,
+  onLater,
+}: {
+  loan: LoanDetail;
+  celebration: FinishCelebration;
+  onNext: () => void;
+  onLater: () => void;
+}) {
+  const currentCount = celebration.class_finished_count;
+  const previousCount = Math.max(0, currentCount - 1);
+  const returnedAt = loan.returned_at ?? new Date().toISOString();
+
+  return (
+    <div className={styles.celebrationScreen}>
+      <div className={styles.celebrationContent}>
+        <div className={styles.bookplate}>Библиотека 9-го класса</div>
+
+        <div className={styles.celebrationCover}>
+          <BookCover book={loan.book} />
+        </div>
+        <div className={styles.finishedStamp}>
+          <span>прочитано целиком</span>
+          <strong>{finishDate.format(new Date(returnedAt))}</strong>
+        </div>
+
+        <div className={styles.finishedBook}>
+          <h1>{loan.book.title}</h1>
+          <p>
+            {loan.book.author} · {loan.book.page_count}{" "}
+            {pageWord(loan.book.page_count)}
+          </p>
+        </div>
+
+        <section className={styles.achievement}>
+          <h2>
+            {celebration.is_first_book
+              ? "Твоя первая книга на английском — от корки до корки."
+              : "Ещё одна книга на английском — от корки до корки."}
+          </h2>
+          <p>
+            {loan.book.page_count} {pageWord(loan.book.page_count)} чужого
+            языка. Дальше легче.
+          </p>
+        </section>
+
+        <section
+          className={styles.celebrationCounter}
+          role="status"
+          aria-live="polite"
+          aria-label={`Счёт класса вырос с ${previousCount} до ${currentCount} ${booksReadWord(currentCount)}`}
+        >
+          <div className={styles.counterEyebrow}>Счёт класса</div>
+          <div className={styles.counterNumbers} aria-hidden="true">
+            <span>{previousCount}</span>
+            <i>→</i>
+            <strong>{currentCount}</strong>
+            <b>{booksReadWord(currentCount)}</b>
+          </div>
+          <div className={styles.finishedShelf} aria-hidden="true">
+            {Array.from({ length: previousCount }, (_, index) => (
+              <span key={index} />
+            ))}
+            <span className={styles.studentSpine} />
+          </div>
+          <p>Последний корешок — твой</p>
+        </section>
+      </div>
+
+      <footer className={styles.celebrationActions}>
+        <Button variant="brand" onClick={onNext}>
+          Выбрать следующую книгу
+        </Button>
+        <Button variant="quiet" onClick={onLater}>
+          Позже
+        </Button>
+      </footer>
+    </div>
+  );
+}
+
 function StateScreen({
   title,
   message,
@@ -701,6 +797,9 @@ export function Return() {
   const [shelfError, setShelfError] = useState<string | null>(null);
   const [bookError, setBookError] = useState<string | null>(null);
   const [reasonError, setReasonError] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<FinishCelebration | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [shelfFailure, setShelfFailure] = useState<CameraFailure | null>(null);
   const [bookFailure, setBookFailure] = useState<CameraFailure | null>(null);
@@ -715,14 +814,20 @@ export function Return() {
     let current = true;
     if (pendingReason.current) {
       const pending = pendingReason.current;
-      api<void>(`/loans/${pending.loanId}/return-reason`, {
+      api<ReturnReasonResponse>(`/loans/${pending.loanId}/return-reason`, {
         method: "POST",
         body: { reason: pending.reason },
       }).then(
-        () => {
+        (response) => {
           if (!current) return;
           clearPendingReason();
-          navigate("/", { replace: true });
+          if (response.celebration) {
+            setLoan(response.loan);
+            setCelebration(response.celebration);
+            setPhase("celebration");
+          } else {
+            navigate("/", { replace: true });
+          }
         },
         (error: unknown) => {
           if (!current) return;
@@ -875,13 +980,19 @@ export function Return() {
     savePendingReason(pending);
     setReasonError(null);
     setPhase("saving-reason");
-    api<void>(`/loans/${loan.id}/return-reason`, {
+    api<ReturnReasonResponse>(`/loans/${loan.id}/return-reason`, {
       method: "POST",
       body: { reason },
     }).then(
-      () => {
+      (response) => {
         clearPendingReason();
-        navigate("/", { replace: true });
+        if (response.celebration) {
+          setLoan(response.loan);
+          setCelebration(response.celebration);
+          setPhase("celebration");
+        } else {
+          navigate("/", { replace: true });
+        }
       },
       (error: unknown) => {
         const apiError =
@@ -1064,6 +1175,16 @@ export function Return() {
         saving={phase === "saving-reason"}
         error={reasonError}
         onChoose={chooseReason}
+      />
+    );
+  }
+  if (phase === "celebration" && celebration) {
+    return (
+      <CelebrationScreen
+        loan={loan}
+        celebration={celebration}
+        onNext={() => navigate(`/?level=${loan.book.level}`, { replace: true })}
+        onLater={() => navigate("/", { replace: true })}
       />
     );
   }

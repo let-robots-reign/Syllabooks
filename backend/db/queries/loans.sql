@@ -91,3 +91,9 @@ WHERE id = @id
   AND returned_at IS NOT NULL
   AND return_reason IS NULL
 RETURNING *;
+
+-- name: CountFinishedBooksForUser :one
+SELECT count(*)
+FROM loans
+WHERE user_id = @user_id
+  AND return_reason = 'finished';

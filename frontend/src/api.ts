@@ -68,6 +68,16 @@ export type LoanDetail = {
   book: Book;
 };
 
+export type FinishCelebration = {
+  class_finished_count: number;
+  is_first_book: boolean;
+};
+
+export type ReturnReasonResponse = {
+  loan: LoanDetail;
+  celebration: FinishCelebration | null;
+};
+
 export type ReturnMethod = "scan" | "manual" | "skipped";
 
 export type ReturnEvidence = {

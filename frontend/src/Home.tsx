@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
+import { useSearchParams } from "react-router-dom";
 import type { BookLevel, CatalogBook, CatalogResponse, Me } from "./api.ts";
 import { api, ApiError } from "./api.ts";
 import { bookLevel, bookLevels } from "./bookLevels.ts";
@@ -22,11 +23,32 @@ const allLevels: Record<BookLevel, boolean> = {
   red: true,
 };
 
+const isBookLevel = (value: string | null): value is BookLevel =>
+  bookLevels.some((level) => level.value === value);
+
 export function Home({ me }: { me: Me }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [catalog, setCatalog] = useState<CatalogResponse>();
   const [error, setError] = useState<string | null>(null);
-  const [active, setActive] = useState(allLevels);
+  const [active, setActive] = useState<Record<BookLevel, boolean>>(() => {
+    const requestedLevel = searchParams.get("level");
+    if (isBookLevel(requestedLevel)) {
+      return {
+        green: requestedLevel === "green",
+        yellow: requestedLevel === "yellow",
+        red: requestedLevel === "red",
+      };
+    }
+    return allLevels;
+  });
   const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const requestedLevel = searchParams.get("level");
+    if (requestedLevel && !isBookLevel(requestedLevel)) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     let current = true;
@@ -49,6 +71,7 @@ export function Home({ me }: { me: Me }) {
   );
 
   const toggleLevel = (level: BookLevel) => {
+    if (searchParams.has("level")) setSearchParams({}, { replace: true });
     setActive((current) => {
       const next = { ...current, [level]: !current[level] };
       return Object.values(next).some(Boolean) ? next : { ...allLevels };
@@ -63,20 +86,20 @@ export function Home({ me }: { me: Me }) {
     <>
       <Header name={me.display_name} isAdmin={me.is_admin} />
       <section className={styles.page}>
-        {!!finishedCount && (
+        {finishedCount !== undefined && (
           <div className={styles.counter}>
-            <div className={styles.eyebrow}>Общий счёт</div>
+            <div className={styles.eyebrow}>Общий счёт класса</div>
             <div className={styles.counterTitle}>
-              <strong>{finishedCount ?? "—"}</strong>
+              <strong>{finishedCount}</strong>
               <span>
-                {booksReadWord(finishedCount ?? 0)} прочитал
+                {booksReadWord(finishedCount)} прочитал
                 <br />
-                наш книжный клуб
+                9-й класс
               </span>
             </div>
 
             <div className={styles.counterShelf} aria-hidden="true">
-              {Array.from({ length: finishedCount ?? 0 }, (_, index) => (
+              {Array.from({ length: finishedCount }, (_, index) => (
                 <span key={index} />
               ))}
             </div>

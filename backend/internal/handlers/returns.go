@@ -42,6 +42,16 @@ type returnReasonInput struct {
 	Reason gen.ReturnReason `json:"reason"`
 }
 
+type finishCelebrationResponse struct {
+	ClassFinishedCount int64 `json:"class_finished_count"`
+	IsFirstBook        bool  `json:"is_first_book"`
+}
+
+type returnReasonResponse struct {
+	Loan        loanDetailResponse         `json:"loan"`
+	Celebration *finishCelebrationResponse `json:"celebration"`
+}
+
 func (s *Server) currentLoan(w http.ResponseWriter, r *http.Request, user gen.User) {
 	loan, err := gen.New(s.Pool).GetCurrentLoanWithBook(r.Context(), user.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -170,11 +180,7 @@ func (s *Server) setReturnReason(w http.ResponseWriter, r *http.Request, user ge
 	_, err := queries.SetReturnReason(r.Context(), gen.SetReturnReasonParams{
 		ID: id, UserID: user.ID, ReturnReason: &input.Reason,
 	})
-	if err == nil {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		serverError(w, r, fmt.Errorf("set return reason: %w", err))
 		return
 	}
@@ -194,11 +200,29 @@ func (s *Server) setReturnReason(w http.ResponseWriter, r *http.Request, user ge
 		writeReturnError(w, http.StatusConflict, "loan_not_returned", "Сначала верни книгу.")
 		return
 	}
-	if loan.ReturnReason != nil && *loan.ReturnReason == input.Reason {
-		w.WriteHeader(http.StatusNoContent)
+	if errors.Is(err, pgx.ErrNoRows) && (loan.ReturnReason == nil || *loan.ReturnReason != input.Reason) {
+		writeReturnError(w, http.StatusConflict, "return_reason_set", "Причина возврата уже сохранена.")
 		return
 	}
-	writeReturnError(w, http.StatusConflict, "return_reason_set", "Причина возврата уже сохранена.")
+
+	response := returnReasonResponse{Loan: presentOwnedLoan(loan)}
+	if input.Reason == gen.ReturnReasonFinished {
+		classFinished, countErr := queries.CountFinishedBooks(r.Context())
+		if countErr != nil {
+			serverError(w, r, fmt.Errorf("count class finished books: %w", countErr))
+			return
+		}
+		userFinished, countErr := queries.CountFinishedBooksForUser(r.Context(), user.ID)
+		if countErr != nil {
+			serverError(w, r, fmt.Errorf("count user's finished books: %w", countErr))
+			return
+		}
+		response.Celebration = &finishCelebrationResponse{
+			ClassFinishedCount: classFinished,
+			IsFirstBook:        userFinished == 1,
+		}
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 type evidenceError struct {
