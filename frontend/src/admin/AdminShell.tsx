@@ -24,7 +24,35 @@ export function AdminShell({
         <Link href="/" className={styles.home} aria-label="Открыть каталог">
           <Wordmark size={24} />
         </Link>
-        <div className={styles.headerActions}>{actions}</div>
+        <div className={styles.headerActions}>
+          <details className={styles.exportMenu}>
+            <summary>Выгрузить CSV</summary>
+            <div className={styles.exportOptions}>
+              <Link
+                href="/api/admin/exports/books.csv"
+                download
+                aria-label="Скачать CSV: книги"
+              >
+                Книги
+              </Link>
+              <Link
+                href="/api/admin/exports/users.csv"
+                download
+                aria-label="Скачать CSV: пользователи"
+              >
+                Пользователи
+              </Link>
+              <Link
+                href="/api/admin/exports/loans.csv"
+                download
+                aria-label="Скачать CSV: выдачи"
+              >
+                Выдачи
+              </Link>
+            </div>
+          </details>
+          {actions}
+        </div>
       </header>
       <nav className={styles.nav} aria-label="Разделы кабинета учителя">
         <AdminLink active={active === "loans"} href="/admin/loans">

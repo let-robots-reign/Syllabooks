@@ -1,0 +1,3 @@
+# Install for the same unprivileged account that owns the backup directory.
+CRON_TZ=Europe/Moscow
+0 3 * * * . /etc/syllabooks/backup.env && /opt/syllabooks/ops/backup.sh >> /var/backups/syllabooks/backup.log 2>&1

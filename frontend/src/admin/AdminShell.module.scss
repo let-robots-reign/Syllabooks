@@ -20,6 +20,66 @@
   gap: 10px;
 }
 
+.exportMenu {
+  position: relative;
+
+  summary {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-sand);
+    color: var(--color-ink-soft);
+    font-size: 13px;
+    cursor: pointer;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &::after {
+      margin-left: 9px;
+      color: var(--color-muted);
+      content: "↓";
+    }
+  }
+
+  &[open] summary {
+    border-color: var(--color-ink);
+    color: var(--color-ink);
+  }
+}
+
+.exportOptions {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 178px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-paper);
+  box-shadow: 0 8px 18px rgb(46 42 38 / 12%);
+
+  a {
+    display: block;
+    padding: 9px 12px;
+    color: var(--color-ink-soft);
+    font-size: 13px;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--color-sand);
+      color: var(--color-ink);
+    }
+
+    & + a {
+      border-top: 1px solid var(--color-rule);
+    }
+  }
+}
+
 .nav {
   display: flex;
   gap: 26px;

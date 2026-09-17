@@ -112,3 +112,81 @@ at http://localhost:8080). Paths under `/api/` go to the handlers; any other
 path gets a file from the bundle or, failing that, `index.html`, so client-side
 routes such as `/profile` survive a reload. In development
 `backend/cmd/api/dist` holds only `.gitkeep`, and Caddy sends pages to Vite.
+
+## CSV exports
+
+An admin can download books, users, or loans from the `Выгрузить CSV` menu in
+the teacher interface. The files are UTF-8 CSV with a byte-order mark so that
+Cyrillic opens correctly in spreadsheet applications. They contain operational
+library data, not authentication secrets. PostgreSQL backups are the recovery
+source for the complete database.
+
+## Database backups
+
+[`ops/backup.sh`](ops/backup.sh) creates a PostgreSQL custom-format archive,
+checks that `pg_restore` can read it, publishes it atomically, and retains the
+newest 14 successful archives. It backs up PostgreSQL only. The files under
+`BOOK_COVERS_DIR` need a separate filesystem backup if preserving locally
+stored covers is required.
+
+The production host needs `pg_dump` and `pg_restore` from a PostgreSQL client
+version at least as new as the server. Install the script and configuration for
+an unprivileged service account:
+
+```sh
+sudo install -d -m 700 -o syllabooks -g syllabooks /var/backups/syllabooks
+sudo install -d -m 755 /etc/syllabooks /opt/syllabooks/ops
+sudo install -m 755 ops/backup.sh /opt/syllabooks/ops/backup.sh
+sudo install -m 600 -o syllabooks -g syllabooks ops/backup.env.example /etc/syllabooks/backup.env
+sudoedit /etc/syllabooks/backup.env
+```
+
+Run one backup manually as that account before installing the cron entry:
+
+```sh
+sudo -u syllabooks sh -c '. /etc/syllabooks/backup.env && /opt/syllabooks/ops/backup.sh'
+```
+
+[`ops/crontab.example`](ops/crontab.example) runs it nightly at 03:00 Moscow
+time. Install that line in the `syllabooks` account's crontab. Review
+`/var/backups/syllabooks/backup.log` and periodically copy archives off the
+VPS, for example:
+
+```sh
+scp 'syllabooks@server.example:/var/backups/syllabooks/syllabooks-*.dump' ./backups/
+```
+
+Keeping only copies on the application server does not protect against losing
+that server.
+
+### Restore test
+
+Never test a restore against the production database. Create a new, clearly
+named scratch database on the same PostgreSQL server and construct a URL that
+names that scratch database explicitly:
+
+```sh
+export DATABASE_URL='postgres://syllabooks:replace-me@127.0.0.1:5432/syllabooks?sslmode=disable'
+export SCRATCH_DB="syllabooks_restore_$(date -u +%Y%m%dT%H%M%SZ)"
+export SCRATCH_DATABASE_URL="postgres://syllabooks:replace-me@127.0.0.1:5432/$SCRATCH_DB?sslmode=disable"
+export BACKUP_FILE='/var/backups/syllabooks/syllabooks-YYYYMMDDTHHMMSSZ.dump'
+
+test "$SCRATCH_DATABASE_URL" != "$DATABASE_URL"
+case "$SCRATCH_DB" in syllabooks_restore_*) ;; *) exit 1 ;; esac
+pg_restore --list "$BACKUP_FILE" >/dev/null
+createdb --maintenance-db="$DATABASE_URL" "$SCRATCH_DB"
+pg_restore --exit-on-error --no-owner --no-privileges --dbname="$SCRATCH_DATABASE_URL" "$BACKUP_FILE"
+psql "$SCRATCH_DATABASE_URL" -v ON_ERROR_STOP=1 -c '\dt'
+psql "$SCRATCH_DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+  'SELECT (SELECT count(*) FROM books) AS books, (SELECT count(*) FROM users) AS users, (SELECT count(*) FROM loans) AS loans;'
+```
+
+Compare those three counts with the source database or with counts recorded at
+backup time, then remove only the scratch database:
+
+```sh
+dropdb --maintenance-db="$DATABASE_URL" "$SCRATCH_DB"
+```
+
+If the restore or validation fails, keep the archive and investigate. Do not
+prune or replace the most recent known-good off-server copy.

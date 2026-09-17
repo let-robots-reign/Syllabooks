@@ -80,6 +80,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/users/{id}/reissue-code", s.requireAdmin(s.reissueCode))
 	mux.HandleFunc("POST /api/admin/users/{id}/reset-password", s.requireAdmin(s.resetPassword))
 	mux.HandleFunc("POST /api/admin/users/{id}/ban", s.requireAdmin(s.banAdminUser))
+	mux.HandleFunc("GET /api/admin/exports/books.csv", s.requireAdmin(s.exportBooksCSV))
+	mux.HandleFunc("GET /api/admin/exports/users.csv", s.requireAdmin(s.exportUsersCSV))
+	mux.HandleFunc("GET /api/admin/exports/loans.csv", s.requireAdmin(s.exportLoansCSV))
 
 	// An unknown API path is a plain 404, never the app's index.html.
 	mux.HandleFunc("/api/", http.NotFound)
