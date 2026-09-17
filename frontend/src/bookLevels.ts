@@ -19,7 +19,7 @@ export const bookLevels: Array<{
   {
     value: "yellow",
     number: 2,
-    shortLabel: "Средняя",
+    shortLabel: "Средне",
     label: "Средняя сложность",
     hint: "современная проза",
     detail: "Второй уровень: современная проза средней сложности.",

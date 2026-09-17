@@ -48,7 +48,7 @@ func TestBorrowBookRejectsLostBook(t *testing.T) {
 	_, code := env.newCodeUser(t)
 	token := env.login(t, code, "читатель")
 	book := newBorrowTestBook(t, env, randomTestISBN(), "Lost Book")
-	env.exec(t, "UPDATE books SET is_lost = true WHERE id = $1", book.ID)
+	env.exec(t, "UPDATE books SET is_lost = true, lost_at = now() WHERE id = $1", book.ID)
 
 	status, result := bookRequest[borrowErrorResponse](t, env, http.MethodPost, "/api/loans", token, map[string]string{"isbn": *book.Isbn})
 	if status != http.StatusConflict || result.Code != "book_lost" || result.Book == nil || result.Book.ID != book.ID {

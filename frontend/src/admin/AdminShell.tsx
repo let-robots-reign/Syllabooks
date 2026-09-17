@@ -1,0 +1,63 @@
+import type { ReactNode } from "react";
+import clsx from "clsx";
+import type { AdminStats } from "../api.ts";
+import { Link } from "../ui/Link.tsx";
+import { Wordmark } from "../ui/Wordmark.tsx";
+import styles from "./AdminShell.module.scss";
+
+type AdminSection = "loans" | "books" | "lost";
+
+export function AdminShell({
+  active,
+  stats,
+  actions,
+  children,
+}: {
+  active: AdminSection;
+  stats?: AdminStats;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className={styles.page}>
+      <header className={styles.header}>
+        <Link href="/" className={styles.home} aria-label="Открыть каталог">
+          <Wordmark size={24} />
+        </Link>
+        <div className={styles.headerActions}>{actions}</div>
+      </header>
+      <nav className={styles.nav} aria-label="Разделы кабинета учителя">
+        <AdminLink active={active === "loans"} href="/admin/loans">
+          Выдачи · {stats?.open_loans ?? "…"}
+        </AdminLink>
+        <AdminLink active={active === "books"} href="/admin/books">
+          Каталог · {stats?.books ?? "…"}
+        </AdminLink>
+        <AdminLink active={active === "lost"} href="/admin/lost">
+          Утеряно · {stats?.lost_books ?? "…"}
+        </AdminLink>
+      </nav>
+      {children}
+    </section>
+  );
+}
+
+function AdminLink({
+  active,
+  href,
+  children,
+}: {
+  active: boolean;
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={clsx(styles.navLink, active && styles.active)}
+      aria-current={active ? "page" : undefined}
+    >
+      {children}
+    </Link>
+  );
+}

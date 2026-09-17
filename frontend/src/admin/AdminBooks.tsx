@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { api, ApiError, type Book, type BookLevel } from "../api.ts";
+import {
+  api,
+  ApiError,
+  type AdminStats,
+  type Book,
+  type BookLevel,
+} from "../api.ts";
 import { Link } from "../ui/Link.tsx";
-import { Wordmark } from "../ui/Wordmark.tsx";
 import { bookLevels, levelLabel } from "../bookLevels.ts";
+import { AdminShell } from "./AdminShell.tsx";
 import styles from "./AdminBooks.module.scss";
 
 type Filter = "all" | BookLevel | "missing-cover";
 
 export function AdminBooks() {
   const [books, setBooks] = useState<Book[]>();
+  const [stats, setStats] = useState<AdminStats>();
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -18,9 +25,14 @@ export function AdminBooks() {
 
   useEffect(() => {
     let current = true;
-    api<Book[]>("/admin/books").then(
-      (result) => {
-        if (current) setBooks(result);
+    Promise.all([
+      api<Book[]>("/admin/books"),
+      api<AdminStats>("/admin/stats"),
+    ]).then(
+      ([result, nextStats]) => {
+        if (!current) return;
+        setBooks(result);
+        setStats(nextStats);
       },
       (err: ApiError) => {
         if (current) setError(err.message);
@@ -74,6 +86,11 @@ export function AdminBooks() {
     try {
       await api(`/admin/books/${book.id}`, { method: "DELETE" });
       setBooks((current) => current?.filter((item) => item.id !== book.id));
+      setStats((current) =>
+        current
+          ? { ...current, books: Math.max(0, current.books - 1) }
+          : current,
+      );
       setPendingDelete(null);
     } catch (err) {
       setError((err as ApiError).message);
@@ -81,12 +98,11 @@ export function AdminBooks() {
   };
 
   return (
-    <section className={styles.page}>
-      <header className={styles.header}>
-        <Link href="/" className={styles.home} aria-label="Открыть каталог">
-          <Wordmark size={24} />
-        </Link>
-        <div className={styles.headerActions}>
+    <AdminShell
+      active="books"
+      stats={stats}
+      actions={
+        <>
           <label className={styles.search}>
             <span className={styles.visuallyHidden}>Поиск по названию</span>
             <input
@@ -102,11 +118,9 @@ export function AdminBooks() {
           <Link href="/admin/books/new" className={styles.add}>
             Добавить книгу
           </Link>
-        </div>
-      </header>
-
-      <div className={styles.rule} />
-
+        </>
+      }
+    >
       <div className={styles.filters} aria-label="Фильтр каталога">
         <FilterButton
           active={filter === "all"}
@@ -221,7 +235,7 @@ export function AdminBooks() {
           </footer>
         </>
       )}
-    </section>
+    </AdminShell>
   );
 }
 

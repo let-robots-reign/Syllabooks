@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { api, ApiError, oauthRedirectError, type Me } from "./api.ts";
 import styles from "./App.module.scss";
 import { AdminBookForm } from "./admin/AdminBookForm.tsx";
 import { AdminBooks } from "./admin/AdminBooks.tsx";
+import { AdminLoans } from "./admin/AdminLoans.tsx";
+import { AdminLost } from "./admin/AdminLost.tsx";
 import { takeAuthReturnPath } from "./authResume.ts";
 import { BookDetail } from "./BookDetail.tsx";
 import { Home } from "./Home.tsx";
@@ -63,7 +71,7 @@ function App() {
 
   const isPrivacy = location.pathname === "/privacy";
   const sand = me === null && !isPrivacy;
-  const admin = me?.is_admin && location.pathname.startsWith("/admin/books");
+  const admin = me?.is_admin && location.pathname.startsWith("/admin");
   const scan =
     me != null &&
     (location.pathname === "/scan" || location.pathname === "/return");
@@ -96,6 +104,12 @@ function App() {
         <Route path="/return" element={<Return />} />
         {me.is_admin && (
           <>
+            <Route
+              path="/admin"
+              element={<Navigate to="/admin/loans" replace />}
+            />
+            <Route path="/admin/loans" element={<AdminLoans />} />
+            <Route path="/admin/lost" element={<AdminLost />} />
             <Route path="/admin/books" element={<AdminBooks />} />
             <Route path="/admin/books/new" element={<AdminBookForm />} />
             <Route path="/admin/books/:id" element={<AdminBookForm />} />

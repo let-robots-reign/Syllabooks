@@ -1,0 +1,50 @@
+.page {
+  min-width: 900px;
+  padding-top: 22px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-bottom: var(--space-4);
+}
+
+.home {
+  display: flex;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav {
+  display: flex;
+  gap: 26px;
+  padding-bottom: 10px;
+  border-bottom: 3px solid var(--color-ink);
+  color: var(--color-ink-soft);
+  font-size: 14px;
+}
+
+.navLink {
+  position: relative;
+  padding: 0;
+}
+
+.active {
+  color: var(--color-ink);
+  font-weight: 600;
+
+  &::after {
+    position: absolute;
+    right: 0;
+    bottom: -10px;
+    left: 0;
+    height: 2px;
+    background: var(--color-brick);
+    content: "";
+  }
+}

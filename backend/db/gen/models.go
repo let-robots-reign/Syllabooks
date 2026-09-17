@@ -185,6 +185,7 @@ type Book struct {
 	Notes       *string
 	CreatedAt   time.Time
 	Description *string
+	LostAt      *time.Time
 }
 
 type Loan struct {
@@ -198,6 +199,7 @@ type Loan struct {
 	ShelfScanOk    *bool
 	BookScanOk     *bool
 	CreatedByAdmin bool
+	ScanReviewedAt *time.Time
 }
 
 type Session struct {

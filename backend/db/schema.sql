@@ -31,8 +31,10 @@ CREATE TABLE public.books (
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     description text,
+    lost_at timestamp with time zone,
     CONSTRAINT books_description_length CHECK ((char_length(description) <= 240)),
     CONSTRAINT books_isbn_check CHECK ((isbn ~ '^[0-9]{13}$'::text)),
+    CONSTRAINT books_lost_state CHECK ((is_lost = (lost_at IS NOT NULL))),
     CONSTRAINT books_page_count_check CHECK ((page_count > 0))
 );
 
@@ -47,10 +49,12 @@ CREATE TABLE public.loans (
     shelf_scan_ok boolean,
     book_scan_ok boolean,
     created_by_admin boolean DEFAULT false NOT NULL,
+    scan_reviewed_at timestamp with time zone,
     CONSTRAINT loans_book_scan_set_on_return CHECK (((returned_at IS NULL) = (book_scan_ok IS NULL))),
     CONSTRAINT loans_due_after_taken CHECK ((due_at > taken_at)),
     CONSTRAINT loans_reason_only_when_returned CHECK (((return_reason IS NULL) OR (returned_at IS NOT NULL))),
     CONSTRAINT loans_returned_after_taken CHECK ((returned_at >= taken_at)),
+    CONSTRAINT loans_scan_review_only_on_flagged_return CHECK (((scan_reviewed_at IS NULL) OR ((returned_at IS NOT NULL) AND ((shelf_scan_ok IS FALSE) OR (book_scan_ok IS FALSE))))),
     CONSTRAINT loans_shelf_scan_set_on_return CHECK (((returned_at IS NULL) = (shelf_scan_ok IS NULL)))
 );
 

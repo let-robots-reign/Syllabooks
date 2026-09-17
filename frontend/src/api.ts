@@ -78,6 +78,53 @@ export type ReturnReasonResponse = {
   celebration: FinishCelebration | null;
 };
 
+export type AdminStats = {
+  open_loans: number;
+  books: number;
+  lost_books: number;
+};
+
+export type AdminLoanBook = Pick<
+  Book,
+  "id" | "isbn" | "title" | "level" | "page_count"
+>;
+
+export type AdminLoanStudent = {
+  id: string;
+  display_name: string;
+};
+
+export type AdminOpenLoan = {
+  id: string;
+  taken_at: string;
+  due_at: string;
+  book: AdminLoanBook;
+  student: AdminLoanStudent;
+};
+
+export type AdminScanReview = AdminOpenLoan & {
+  returned_at: string;
+  shelf_scan_ok: boolean;
+  book_scan_ok: boolean;
+};
+
+export type AdminLoansResponse = {
+  as_of: string;
+  open_loans: AdminOpenLoan[];
+  review_queue: AdminScanReview[];
+};
+
+export type AdminLostBook = {
+  book: AdminLoanBook;
+  lost_at: string;
+  last_borrower_name: string;
+  last_taken_at: string | null;
+};
+
+export type AdminLostBooksResponse = {
+  books: AdminLostBook[];
+};
+
 export type ReturnMethod = "scan" | "manual" | "skipped";
 
 export type ReturnEvidence = {

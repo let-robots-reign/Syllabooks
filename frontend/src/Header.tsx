@@ -12,7 +12,7 @@ export function Header({ name, isAdmin }: { name: string; isAdmin: boolean }) {
       </Link>
       <div className={styles.actions}>
         {isAdmin && (
-          <Link href="/admin/books" className={styles.admin}>
+          <Link href="/admin/loans" className={styles.admin}>
             Админка
           </Link>
         )}

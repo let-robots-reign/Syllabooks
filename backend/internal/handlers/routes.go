@@ -62,6 +62,14 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("DELETE /api/admin/books/{id}", s.requireAdmin(s.deleteBook))
 	mux.HandleFunc("PUT /api/admin/books/{id}/cover", s.requireAdmin(s.uploadBookCover))
 	mux.HandleFunc("DELETE /api/admin/books/{id}/cover", s.requireAdmin(s.deleteBookCover))
+	mux.HandleFunc("POST /api/admin/books/{id}/found", s.requireAdmin(s.markAdminBookFound))
+	mux.HandleFunc("GET /api/admin/stats", s.requireAdmin(s.adminStats))
+	mux.HandleFunc("GET /api/admin/loans", s.requireAdmin(s.listAdminLoans))
+	mux.HandleFunc("POST /api/admin/loans/{id}/extend", s.requireAdmin(s.extendAdminLoan))
+	mux.HandleFunc("POST /api/admin/loans/{id}/return", s.requireAdmin(s.completeAdminReturn))
+	mux.HandleFunc("POST /api/admin/loans/{id}/lost", s.requireAdmin(s.markAdminLoanLost))
+	mux.HandleFunc("POST /api/admin/loans/{id}/review", s.requireAdmin(s.reviewAdminLoanScan))
+	mux.HandleFunc("GET /api/admin/lost", s.requireAdmin(s.listAdminLostBooks))
 	mux.HandleFunc("POST /api/admin/users/{id}/reset-password", s.requireAdmin(s.resetPassword))
 
 	// An unknown API path is a plain 404, never the app's index.html.

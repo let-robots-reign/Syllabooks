@@ -18,7 +18,7 @@ SET returned_at = now(),
     shelf_scan_ok = $1,
     book_scan_ok = $2
 WHERE id = $3 AND user_id = $4 AND returned_at IS NULL
-RETURNING id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin
+RETURNING id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin, scan_reviewed_at
 `
 
 type CompleteReturnParams struct {
@@ -47,6 +47,7 @@ func (q *Queries) CompleteReturn(ctx context.Context, arg CompleteReturnParams) 
 		&i.ShelfScanOk,
 		&i.BookScanOk,
 		&i.CreatedByAdmin,
+		&i.ScanReviewedAt,
 	)
 	return i, err
 }
@@ -68,7 +69,7 @@ func (q *Queries) CountFinishedBooksForUser(ctx context.Context, userID uuid.UUI
 const createLoan = `-- name: CreateLoan :one
 INSERT INTO loans (book_id, user_id, due_at, created_by_admin)
 VALUES ($1, $2, now() + $3::integer * interval '1 day', $4)
-RETURNING id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin
+RETURNING id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin, scan_reviewed_at
 `
 
 type CreateLoanParams struct {
@@ -99,12 +100,13 @@ func (q *Queries) CreateLoan(ctx context.Context, arg CreateLoanParams) (Loan, e
 		&i.ShelfScanOk,
 		&i.BookScanOk,
 		&i.CreatedByAdmin,
+		&i.ScanReviewedAt,
 	)
 	return i, err
 }
 
 const getBookByISBN = `-- name: GetBookByISBN :one
-SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at
 FROM books
 WHERE isbn = $1
 `
@@ -124,6 +126,7 @@ func (q *Queries) GetBookByISBN(ctx context.Context, isbn *string) (Book, error)
 		&i.Notes,
 		&i.CreatedAt,
 		&i.Description,
+		&i.LostAt,
 	)
 	return i, err
 }
@@ -320,7 +323,7 @@ func (q *Queries) GetOpenLoanForBook(ctx context.Context, bookID uuid.UUID) (Get
 }
 
 const getOpenLoanForUser = `-- name: GetOpenLoanForUser :one
-SELECT id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin
+SELECT id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin, scan_reviewed_at
 FROM loans
 WHERE user_id = $1 AND returned_at IS NULL
 `
@@ -339,6 +342,7 @@ func (q *Queries) GetOpenLoanForUser(ctx context.Context, userID uuid.UUID) (Loa
 		&i.ShelfScanOk,
 		&i.BookScanOk,
 		&i.CreatedByAdmin,
+		&i.ScanReviewedAt,
 	)
 	return i, err
 }
@@ -350,7 +354,7 @@ WHERE id = $2
   AND user_id = $3
   AND returned_at IS NOT NULL
   AND return_reason IS NULL
-RETURNING id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin
+RETURNING id, book_id, user_id, taken_at, due_at, returned_at, return_reason, shelf_scan_ok, book_scan_ok, created_by_admin, scan_reviewed_at
 `
 
 type SetReturnReasonParams struct {
@@ -373,6 +377,7 @@ func (q *Queries) SetReturnReason(ctx context.Context, arg SetReturnReasonParams
 		&i.ShelfScanOk,
 		&i.BookScanOk,
 		&i.CreatedByAdmin,
+		&i.ScanReviewedAt,
 	)
 	return i, err
 }

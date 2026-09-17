@@ -32,8 +32,8 @@ func TestStudentCatalog(t *testing.T) {
 		{borrowedID, "Catalog Borrowed", "yellow", 42, false, "private borrowed note", ""},
 		{lostID, "Catalog Lost", "red", 63, true, "private lost note", ""},
 	} {
-		env.exec(t, `INSERT INTO books (id, title, author, level, page_count, is_lost, notes, description)
-			VALUES ($1, $2, 'Test Author', $3, $4, $5, $6, NULLIF($7, ''))`,
+		env.exec(t, `INSERT INTO books (id, title, author, level, page_count, is_lost, lost_at, notes, description)
+			VALUES ($1, $2, 'Test Author', $3, $4, $5, CASE WHEN $5 THEN now() ELSE NULL END, $6, NULLIF($7, ''))`,
 			book.id, book.title, book.level, book.pages, book.lost, book.notes, book.descr)
 	}
 	t.Cleanup(func() {
