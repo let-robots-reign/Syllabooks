@@ -5,7 +5,7 @@ import { Link } from "../ui/Link.tsx";
 import { Wordmark } from "../ui/Wordmark.tsx";
 import styles from "./AdminShell.module.scss";
 
-type AdminSection = "loans" | "books" | "lost";
+type AdminSection = "loans" | "books" | "users" | "lost";
 
 export function AdminShell({
   active,
@@ -32,6 +32,9 @@ export function AdminShell({
         </AdminLink>
         <AdminLink active={active === "books"} href="/admin/books">
           Каталог · {stats?.books ?? "…"}
+        </AdminLink>
+        <AdminLink active={active === "users"} href="/admin/users">
+          Ученики · {stats?.users ?? "…"}
         </AdminLink>
         <AdminLink active={active === "lost"} href="/admin/lost">
           Утеряно · {stats?.lost_books ?? "…"}

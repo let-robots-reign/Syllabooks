@@ -7,9 +7,24 @@ package gen
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
+
+const banAdminStudent = `-- name: BanAdminStudent :execrows
+UPDATE users
+SET status = 'banned'
+WHERE id = $1 AND NOT is_admin
+`
+
+func (q *Queries) BanAdminStudent(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, banAdminStudent, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
 
 const createCodeUser = `-- name: CreateCodeUser :one
 INSERT INTO users (display_name, code)
@@ -42,6 +57,57 @@ func (q *Queries) CreateCodeUser(ctx context.Context, arg CreateCodeUserParams) 
 	return i, err
 }
 
+const getAdminStudentForUpdate = `-- name: GetAdminStudentForUpdate :one
+SELECT id, code, status
+FROM users
+WHERE id = $1 AND NOT is_admin
+FOR UPDATE
+`
+
+type GetAdminStudentForUpdateRow struct {
+	ID     uuid.UUID
+	Code   *string
+	Status UserStatus
+}
+
+func (q *Queries) GetAdminStudentForUpdate(ctx context.Context, id uuid.UUID) (GetAdminStudentForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getAdminStudentForUpdate, id)
+	var i GetAdminStudentForUpdateRow
+	err := row.Scan(&i.ID, &i.Code, &i.Status)
+	return i, err
+}
+
+const getAdminUserSummary = `-- name: GetAdminUserSummary :one
+SELECT (SELECT count(*) FROM loans WHERE return_reason = 'finished')::integer AS finished_books,
+       (SELECT count(*) FROM loans l JOIN users u ON u.id = l.user_id
+        WHERE l.returned_at IS NULL AND NOT u.is_admin)::integer AS reading_now,
+       (SELECT count(*) FROM users u
+        WHERE NOT u.is_admin
+          AND NOT EXISTS (SELECT 1 FROM loans l WHERE l.user_id = u.id AND l.returned_at IS NULL))::integer AS without_book,
+       (SELECT count(*) FROM users u
+        WHERE NOT u.is_admin
+          AND NOT EXISTS (SELECT 1 FROM loans l WHERE l.user_id = u.id))::integer AS never_borrowed
+`
+
+type GetAdminUserSummaryRow struct {
+	FinishedBooks int32
+	ReadingNow    int32
+	WithoutBook   int32
+	NeverBorrowed int32
+}
+
+func (q *Queries) GetAdminUserSummary(ctx context.Context) (GetAdminUserSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getAdminUserSummary)
+	var i GetAdminUserSummaryRow
+	err := row.Scan(
+		&i.FinishedBooks,
+		&i.ReadingNow,
+		&i.WithoutBook,
+		&i.NeverBorrowed,
+	)
+	return i, err
+}
+
 const getUserByCode = `-- name: GetUserByCode :one
 SELECT id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at FROM users WHERE code = $1::text
 `
@@ -63,6 +129,123 @@ func (q *Queries) GetUserByCode(ctx context.Context, code string) (User, error) 
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const listAdminUsers = `-- name: ListAdminUsers :many
+SELECT u.id,
+       u.display_name,
+       u.oauth_provider,
+       u.code,
+       (u.password_hash IS NOT NULL)::boolean AS has_password,
+       u.status,
+       u.created_at,
+       COALESCE(current_loan.loan_id, '00000000-0000-0000-0000-000000000000'::uuid) AS loan_id,
+       COALESCE(current_loan.due_at, 'epoch'::timestamptz) AS due_at,
+       COALESCE(current_loan.book_id, '00000000-0000-0000-0000-000000000000'::uuid) AS book_id,
+       COALESCE(current_loan.book_title, '')::text AS book_title,
+       COALESCE(current_loan.book_level, '')::text AS book_level,
+       (SELECT count(*) FROM loans l
+        WHERE l.user_id = u.id AND l.return_reason = 'finished')::integer AS finished_count,
+       (SELECT count(*) FROM loans l
+        WHERE l.user_id = u.id AND l.return_reason IN ('too_hard', 'boring'))::integer AS abandoned_count
+FROM users u
+LEFT JOIN LATERAL (
+    SELECT l.id AS loan_id,
+           l.due_at,
+           b.id AS book_id,
+           b.title AS book_title,
+           b.level::text AS book_level
+    FROM loans l
+    JOIN books b ON b.id = l.book_id
+    WHERE l.user_id = u.id AND l.returned_at IS NULL
+    LIMIT 1
+) current_loan ON true
+WHERE NOT u.is_admin
+ORDER BY u.created_at DESC, u.id
+`
+
+type ListAdminUsersRow struct {
+	ID             uuid.UUID
+	DisplayName    string
+	OauthProvider  *string
+	Code           *string
+	HasPassword    bool
+	Status         UserStatus
+	CreatedAt      time.Time
+	LoanID         uuid.UUID
+	DueAt          time.Time
+	BookID         uuid.UUID
+	BookTitle      string
+	BookLevel      string
+	FinishedCount  int32
+	AbandonedCount int32
+}
+
+func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error) {
+	rows, err := q.db.Query(ctx, listAdminUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAdminUsersRow
+	for rows.Next() {
+		var i ListAdminUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.OauthProvider,
+			&i.Code,
+			&i.HasPassword,
+			&i.Status,
+			&i.CreatedAt,
+			&i.LoanID,
+			&i.DueAt,
+			&i.BookID,
+			&i.BookTitle,
+			&i.BookLevel,
+			&i.FinishedCount,
+			&i.AbandonedCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reissueStudentCode = `-- name: ReissueStudentCode :exec
+UPDATE users
+SET code = $1::text
+WHERE id = $2 AND NOT is_admin
+`
+
+type ReissueStudentCodeParams struct {
+	Code string
+	ID   uuid.UUID
+}
+
+func (q *Queries) ReissueStudentCode(ctx context.Context, arg ReissueStudentCodeParams) error {
+	_, err := q.db.Exec(ctx, reissueStudentCode, arg.Code, arg.ID)
+	return err
+}
+
+const reserveStudentCode = `-- name: ReserveStudentCode :execrows
+INSERT INTO issued_student_codes (code)
+VALUES ($1::text)
+ON CONFLICT DO NOTHING
+`
+
+// This table includes active and retired codes. ON CONFLICT lets the handler
+// retry a randomly generated collision without aborting its transaction.
+func (q *Queries) ReserveStudentCode(ctx context.Context, code string) (int64, error) {
+	result, err := q.db.Exec(ctx, reserveStudentCode, code)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const resetPassword = `-- name: ResetPassword :execrows
@@ -100,6 +283,30 @@ func (q *Queries) SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnset
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const updateAdminStudentName = `-- name: UpdateAdminStudentName :one
+UPDATE users
+SET display_name = $1
+WHERE id = $2 AND NOT is_admin
+RETURNING id, display_name
+`
+
+type UpdateAdminStudentNameParams struct {
+	DisplayName string
+	ID          uuid.UUID
+}
+
+type UpdateAdminStudentNameRow struct {
+	ID          uuid.UUID
+	DisplayName string
+}
+
+func (q *Queries) UpdateAdminStudentName(ctx context.Context, arg UpdateAdminStudentNameParams) (UpdateAdminStudentNameRow, error) {
+	row := q.db.QueryRow(ctx, updateAdminStudentName, arg.DisplayName, arg.ID)
+	var i UpdateAdminStudentNameRow
+	err := row.Scan(&i.ID, &i.DisplayName)
+	return i, err
 }
 
 const upsertOAuthUser = `-- name: UpsertOAuthUser :one

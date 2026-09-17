@@ -38,6 +38,12 @@ CREATE TABLE public.books (
     CONSTRAINT books_page_count_check CHECK ((page_count > 0))
 );
 
+CREATE TABLE public.issued_student_codes (
+    code text NOT NULL,
+    issued_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT issued_student_codes_code_check CHECK ((code = upper(code)))
+);
+
 CREATE TABLE public.loans (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     book_id uuid NOT NULL,
@@ -88,6 +94,9 @@ ALTER TABLE ONLY public.books
 
 ALTER TABLE ONLY public.books
     ADD CONSTRAINT books_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.issued_student_codes
+    ADD CONSTRAINT issued_student_codes_pkey PRIMARY KEY (code);
 
 ALTER TABLE ONLY public.loans
     ADD CONSTRAINT loans_pkey PRIMARY KEY (id);

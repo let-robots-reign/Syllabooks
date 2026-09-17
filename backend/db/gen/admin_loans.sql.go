@@ -77,19 +77,26 @@ func (q *Queries) GetAdminLoanState(ctx context.Context, id uuid.UUID) (GetAdmin
 const getAdminStats = `-- name: GetAdminStats :one
 SELECT (SELECT count(*) FROM loans WHERE returned_at IS NULL)::integer AS open_loans,
        (SELECT count(*) FROM books)::integer AS books,
-       (SELECT count(*) FROM books WHERE is_lost)::integer AS lost_books
+       (SELECT count(*) FROM books WHERE is_lost)::integer AS lost_books,
+       (SELECT count(*) FROM users WHERE NOT is_admin)::integer AS users
 `
 
 type GetAdminStatsRow struct {
 	OpenLoans int32
 	Books     int32
 	LostBooks int32
+	Users     int32
 }
 
 func (q *Queries) GetAdminStats(ctx context.Context) (GetAdminStatsRow, error) {
 	row := q.db.QueryRow(ctx, getAdminStats)
 	var i GetAdminStatsRow
-	err := row.Scan(&i.OpenLoans, &i.Books, &i.LostBooks)
+	err := row.Scan(
+		&i.OpenLoans,
+		&i.Books,
+		&i.LostBooks,
+		&i.Users,
+	)
 	return i, err
 }
 

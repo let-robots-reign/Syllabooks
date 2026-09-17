@@ -82,6 +82,44 @@ export type AdminStats = {
   open_loans: number;
   books: number;
   lost_books: number;
+  users: number;
+};
+
+export type AdminUserStatus = "approved" | "pending" | "banned";
+export type AdminUserLoginMethod = "code" | "yandex" | "vk";
+
+export type AdminUser = {
+  id: string;
+  display_name: string;
+  login_method: AdminUserLoginMethod;
+  code: string | null;
+  has_password: boolean;
+  status: AdminUserStatus;
+  created_at: string;
+  current_loan: {
+    id: string;
+    due_at: string;
+    book: Pick<Book, "id" | "title" | "level">;
+  } | null;
+  finished_count: number;
+  abandoned_count: number;
+};
+
+export type AdminUsersResponse = {
+  as_of: string;
+  summary: {
+    finished_books: number;
+    reading_now: number;
+    without_book: number;
+    never_borrowed: number;
+  };
+  users: AdminUser[];
+};
+
+export type IssuedCodeResponse = {
+  id: string;
+  display_name?: string;
+  code: string;
 };
 
 export type AdminLoanBook = Pick<

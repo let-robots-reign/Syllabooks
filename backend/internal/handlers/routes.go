@@ -31,6 +31,9 @@ type Server struct {
 	OpenLibraryBaseURL string
 	GoogleBooksBaseURL string
 	GoogleBooksAPIKey  string
+	// StudentCodeGenerator is a test seam for exercising code collisions. The
+	// production default uses crypto/rand and the ambiguity-free code alphabet.
+	StudentCodeGenerator func() (string, error)
 }
 
 func (s *Server) Routes() http.Handler {
@@ -70,7 +73,12 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/loans/{id}/lost", s.requireAdmin(s.markAdminLoanLost))
 	mux.HandleFunc("POST /api/admin/loans/{id}/review", s.requireAdmin(s.reviewAdminLoanScan))
 	mux.HandleFunc("GET /api/admin/lost", s.requireAdmin(s.listAdminLostBooks))
+	mux.HandleFunc("GET /api/admin/users", s.requireAdmin(s.listAdminUsers))
+	mux.HandleFunc("POST /api/admin/users", s.requireAdmin(s.createAdminUser))
+	mux.HandleFunc("PATCH /api/admin/users/{id}", s.requireAdmin(s.updateAdminUser))
+	mux.HandleFunc("POST /api/admin/users/{id}/reissue-code", s.requireAdmin(s.reissueCode))
 	mux.HandleFunc("POST /api/admin/users/{id}/reset-password", s.requireAdmin(s.resetPassword))
+	mux.HandleFunc("POST /api/admin/users/{id}/ban", s.requireAdmin(s.banAdminUser))
 
 	// An unknown API path is a plain 404, never the app's index.html.
 	mux.HandleFunc("/api/", http.NotFound)

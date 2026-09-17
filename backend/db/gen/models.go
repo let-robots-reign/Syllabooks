@@ -188,6 +188,11 @@ type Book struct {
 	LostAt      *time.Time
 }
 
+type IssuedStudentCode struct {
+	Code     string
+	IssuedAt time.Time
+}
+
 type Loan struct {
 	ID             uuid.UUID
 	BookID         uuid.UUID

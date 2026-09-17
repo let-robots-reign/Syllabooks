@@ -16,6 +16,7 @@ type adminStatsResponse struct {
 	OpenLoans int32 `json:"open_loans"`
 	Books     int32 `json:"books"`
 	LostBooks int32 `json:"lost_books"`
+	Users     int32 `json:"users"`
 }
 
 type adminLoanBookResponse struct {
@@ -77,6 +78,7 @@ func (s *Server) adminStats(w http.ResponseWriter, r *http.Request, _ gen.User) 
 		OpenLoans: stats.OpenLoans,
 		Books:     stats.Books,
 		LostBooks: stats.LostBooks,
+		Users:     stats.Users,
 	})
 }
 
