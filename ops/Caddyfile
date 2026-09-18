@@ -1,0 +1,13 @@
+# Ports 80 and 443 must be open and the domain's A/AAAA records must point at
+# this VPS.
+syllabooks.ru {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+}

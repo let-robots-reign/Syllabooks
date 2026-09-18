@@ -113,6 +113,14 @@ path gets a file from the bundle or, failing that, `index.html`, so client-side
 routes such as `/profile` survive a reload. In development
 `backend/cmd/api/dist` holds only `.gitkeep`, and Caddy sends pages to Vite.
 
+The binary also embeds every database migration. Run `./bin/syllabooks migrate`
+with `DATABASE_URL` set to apply pending migrations. The production systemd
+unit does this automatically before starting a release.
+
+For the one-time VPS setup, hardened systemd and Caddy configuration, secrets,
+OAuth redirect URLs, backups, launch checks, and the `make deploy` workflow,
+see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## CSV exports
 
 An admin can download books, users, or loans from the `Выгрузить CSV` menu in

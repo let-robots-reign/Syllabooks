@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Receive a release on stdin and deploy it. A GitHub Actions SSH key is forced
+# through this command, so it cannot obtain a shell or select another target.
+set -eu
+umask 077
+
+expected_command=/usr/local/sbin/syllabooks-deploy
+if [ -n "${SSH_ORIGINAL_COMMAND:-}" ] && [ "$SSH_ORIGINAL_COMMAND" != "$expected_command" ]; then
+	printf '%s\n' 'This SSH key may only deploy Syllabooks.' >&2
+	exit 126
+fi
+
+incoming_dir=/home/zotov/.local/state/syllabooks-deploy
+incoming=$incoming_dir/incoming
+install -d -m 0700 "$incoming_dir"
+trap 'rm -f "$incoming"' EXIT HUP INT TERM
+
+cat >"$incoming"
+test -s "$incoming"
+
+sudo /usr/bin/install -o root -g root -m 0755 "$incoming" /opt/syllabooks/syllabooks.new
+if [ -x /opt/syllabooks/syllabooks ]; then
+	sudo /usr/bin/mv /opt/syllabooks/syllabooks /opt/syllabooks/syllabooks.previous
+fi
+sudo /usr/bin/mv /opt/syllabooks/syllabooks.new /opt/syllabooks/syllabooks
+
+if ! sudo /usr/bin/systemctl restart syllabooks; then
+	if [ -x /opt/syllabooks/syllabooks.previous ]; then
+		sudo /usr/bin/mv /opt/syllabooks/syllabooks.previous /opt/syllabooks/syllabooks
+		sudo /usr/bin/systemctl restart syllabooks
+	fi
+	exit 1
+fi
+
+sudo /usr/bin/systemctl --no-pager --full status syllabooks

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -15,17 +16,58 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 
+	"syllabooks/db/migrations"
 	"syllabooks/internal/handlers"
 )
 
 func main() {
-	if err := run(); err != nil {
+	if err := run(os.Args[1:]); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run() error {
+func run(args []string) error {
+	if len(args) > 0 {
+		if len(args) == 1 && args[0] == "migrate" {
+			return migrate()
+		}
+		return fmt.Errorf("usage: %s [migrate]", os.Args[0])
+	}
+	return serve()
+}
+
+func migrate() error {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return errors.New("DATABASE_URL is not set")
+	}
+
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		return fmt.Errorf("open database for migrations: %w", err)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("connect to database for migrations: %w", err)
+	}
+
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("set migration dialect: %w", err)
+	}
+	if err := goose.UpContext(ctx, db, "."); err != nil {
+		return fmt.Errorf("apply database migrations: %w", err)
+	}
+	return nil
+}
+
+func serve() error {
 	// Configuration comes from environment variables: docker-compose.yaml sets them
 	// in development, the service manager sets them in production.
 	databaseURL := os.Getenv("DATABASE_URL")

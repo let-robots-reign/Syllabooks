@@ -3,8 +3,11 @@
 
 SCHEMA := backend/db/schema.sql
 DIST := backend/cmd/api/dist
+LINUX_BINARY := bin/syllabooks-linux-amd64
+DEPLOY_HOST ?=
+DEPLOY_URL ?=
 
-.PHONY: db build
+.PHONY: db frontend-build build build-linux deploy
 
 # Apply pending migrations, write the resulting schema to backend/db/schema.sql
 # for reading, and regenerate the sqlc code. Run after adding a migration or
@@ -22,11 +25,29 @@ db:
 	rm $(SCHEMA).tmp
 	cd backend && go tool sqlc generate
 
-# Build bin/syllabooks: the Go server with the built frontend embedded, one
-# process serving the API and the app (PRD §12). The frontend bundle is copied
-# into backend/cmd/api/dist, where go:embed can reach it.
-build:
+# Build the frontend bundle where go:embed can reach it.
+frontend-build:
 	cd frontend && pnpm install --frozen-lockfile && pnpm build
 	find $(DIST) -mindepth 1 ! -name .gitkeep -delete
 	cp -R frontend/dist/. $(DIST)/
+
+# Build bin/syllabooks: one process serving the API and embedded app (PRD §12).
+build: frontend-build
 	cd backend && go build -o ../bin/syllabooks ./cmd/api
+
+# Build on any Go host for the production linux/amd64 VPS. The server has no
+# build toolchain or Node installation; it receives this one static binary.
+build-linux: frontend-build
+	cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o ../$(LINUX_BINARY) ./cmd/api
+
+# Build, stream one binary through the restricted deployment command, run
+# embedded migrations via ExecStartPre, restart, and verify the public HTTPS
+# endpoint.
+#
+#   make deploy DEPLOY_HOST=zotov@31.77.173.53 DEPLOY_URL=https://syllabooks.ru
+deploy:
+	@test -n "$(DEPLOY_HOST)" || { echo 'DEPLOY_HOST is required (user@host)' >&2; exit 2; }
+	@test -n "$(DEPLOY_URL)" || { echo 'DEPLOY_URL is required (https://domain)' >&2; exit 2; }
+	$(MAKE) build-linux
+	ssh "$(DEPLOY_HOST)" '/usr/local/sbin/syllabooks-deploy' < $(LINUX_BINARY)
+	curl --fail --show-error --silent --retry 5 --retry-delay 2 --retry-connrefused "$(DEPLOY_URL)/api/health"

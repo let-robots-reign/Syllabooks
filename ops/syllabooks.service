@@ -1,0 +1,41 @@
+[Unit]
+Description=Syllabooks web application
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=syllabooks
+Group=syllabooks
+EnvironmentFile=/etc/syllabooks/syllabooks.env
+WorkingDirectory=/var/lib/syllabooks
+
+# Migrations are embedded in the release binary. A failed migration prevents
+# the new application process from starting and is visible in journalctl.
+ExecStartPre=/opt/syllabooks/syllabooks migrate
+ExecStart=/opt/syllabooks/syllabooks
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=3min
+TimeoutStopSec=20s
+UMask=0077
+
+# systemd creates /var/lib/syllabooks with the service user's ownership. Cover
+# uploads live below it; the rest of the host filesystem stays read-only.
+StateDirectory=syllabooks
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target
