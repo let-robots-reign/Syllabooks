@@ -828,7 +828,7 @@ function CelebrationScreen({
   return (
     <div className={styles.celebrationScreen}>
       <div className={styles.celebrationContent}>
-        <div className={styles.bookplate}>Библиотека 9-го класса</div>
+        <div className={styles.bookplate}>Книжный клуб Syllabooks</div>
 
         <div className={styles.celebrationCover}>
           <BookCover book={loan.book} />
@@ -849,12 +849,12 @@ function CelebrationScreen({
         <section className={styles.achievement}>
           <h2>
             {celebration.is_first_book
-              ? "Твоя первая книга на английском — от корки до корки."
-              : "Ещё одна книга на английском — от корки до корки."}
+              ? "Твоя первая книга на английском — так держать!."
+              : "Ещё одна книга на английском — ты молодец!"}
           </h2>
           <p>
             {loan.book.page_count} {pageWord(loan.book.page_count)} чужого
-            языка. Дальше легче.
+            языка. Дальше пойдет легче.
           </p>
         </section>
 
@@ -862,9 +862,11 @@ function CelebrationScreen({
           className={styles.celebrationCounter}
           role="status"
           aria-live="polite"
-          aria-label={`Счёт класса вырос с ${previousCount} до ${currentCount} ${booksReadWord(currentCount)}`}
+          aria-label={`Счёт прочитанных книг вырос с ${previousCount} до ${currentCount} ${booksReadWord(currentCount)}`}
         >
-          <div className={styles.counterEyebrow}>Счёт класса</div>
+          <div className={styles.counterEyebrow}>
+            Общий счёт прочитанных книг
+          </div>
           <div className={styles.counterNumbers} aria-hidden="true">
             <span>{previousCount}</span>
             <i>→</i>
@@ -877,7 +879,7 @@ function CelebrationScreen({
             ))}
             <span className={styles.studentSpine} />
           </div>
-          <p>Последний корешок — твой</p>
+          <p>Последний корешок в списке — твой</p>
         </section>
       </div>
 

@@ -361,7 +361,7 @@ function Summary({ summary }: { summary: AdminUsersResponse["summary"] }) {
     <section className={styles.summary} aria-label="Сводка по ученикам">
       <SummaryItem
         value={summary.finished_books}
-        label="книг прочитано классом"
+        label="всего книг прочитано"
         accent="summaryGreen"
       />
       <SummaryItem value={summary.reading_now} label="читают сейчас" />

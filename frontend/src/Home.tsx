@@ -117,15 +117,15 @@ export function Home({ me }: { me: Me }) {
     <>
       <Header name={me.display_name} isAdmin={me.is_admin} />
       <section className={styles.page}>
-        {finishedCount !== undefined && (
+        {!!finishedCount && (
           <div className={styles.counter}>
-            <div className={styles.eyebrow}>Общий счёт класса</div>
+            <div className={styles.eyebrow}>Общий счёт</div>
             <div className={styles.counterTitle}>
               <strong>{finishedCount}</strong>
               <span>
                 {booksReadWord(finishedCount)} прочитал
                 <br />
-                9-й класс
+                наш книжный клуб
               </span>
             </div>
 
