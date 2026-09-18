@@ -49,6 +49,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/auth/code/login", s.codeLogin)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("GET /api/me", s.requireUser(s.me))
+	mux.HandleFunc("POST /api/onboarding/complete", s.requireUser(s.completeOnboarding))
 	mux.HandleFunc("GET /api/profile", s.requireUser(s.profile))
 	mux.HandleFunc("GET /api/books", s.requireUser(s.listCatalog))
 	mux.HandleFunc("GET /api/books/{id}", s.requireUser(s.getCatalogBook))

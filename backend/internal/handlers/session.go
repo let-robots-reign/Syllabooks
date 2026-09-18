@@ -141,10 +141,21 @@ func (s *Server) requireAdmin(h userHandler) http.HandlerFunc {
 
 func (s *Server) me(w http.ResponseWriter, r *http.Request, user gen.User) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"id":           user.ID,
-		"display_name": user.DisplayName,
-		"is_admin":     user.IsAdmin,
+		"id":                   user.ID,
+		"display_name":         user.DisplayName,
+		"is_admin":             user.IsAdmin,
+		"onboarding_completed": user.OnboardingCompletedAt != nil,
 	})
+}
+
+// completeOnboarding permanently dismisses the first-login explanation for
+// this account. The query preserves the original completion time on retries.
+func (s *Server) completeOnboarding(w http.ResponseWriter, r *http.Request, user gen.User) {
+	if err := gen.New(s.Pool).CompleteOnboarding(r.Context(), user.ID); err != nil {
+		serverError(w, r, fmt.Errorf("complete onboarding: %w", err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // logout ends the session behind the request's token. It needs no valid

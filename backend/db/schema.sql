@@ -82,6 +82,7 @@ CREATE TABLE public.users (
     status public.user_status DEFAULT 'approved'::public.user_status NOT NULL,
     is_admin boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    onboarding_completed_at timestamp with time zone,
     CONSTRAINT users_code_check CHECK ((code = upper(code))),
     CONSTRAINT users_oauth_identity_complete CHECK (((oauth_provider IS NULL) = (oauth_subject IS NULL))),
     CONSTRAINT users_oauth_or_code CHECK (((oauth_provider IS NULL) OR (code IS NULL))),

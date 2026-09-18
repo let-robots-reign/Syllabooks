@@ -19,6 +19,7 @@ import { BookDetail } from "./BookDetail.tsx";
 import { Home } from "./Home.tsx";
 import { Login } from "./Login.tsx";
 import { NotFound } from "./NotFound.tsx";
+import { Onboarding } from "./Onboarding.tsx";
 import { Privacy } from "./Privacy.tsx";
 import { Profile } from "./Profile.tsx";
 import { Return } from "./returns/Return.tsx";
@@ -70,11 +71,20 @@ function App() {
     navigate("/", { replace: true });
   };
 
+  const completeOnboarding = () => {
+    setMe((current) =>
+      current ? { ...current, onboarding_completed: true } : current,
+    );
+  };
+
   const isPrivacy = location.pathname === "/privacy";
   const sand = me === null && !isPrivacy;
-  const admin = me?.is_admin && location.pathname.startsWith("/admin");
+  const admin =
+    me?.onboarding_completed &&
+    me.is_admin &&
+    location.pathname.startsWith("/admin");
   const scan =
-    me != null &&
+    me?.onboarding_completed &&
     (location.pathname === "/scan" || location.pathname === "/return");
 
   let routes;
@@ -90,6 +100,13 @@ function App() {
       <Route
         path="*"
         element={<Login onSignedIn={signIn} initialError={error} />}
+      />
+    );
+  } else if (!me.onboarding_completed) {
+    routes = (
+      <Route
+        path="*"
+        element={<Onboarding onComplete={completeOnboarding} />}
       />
     );
   } else {

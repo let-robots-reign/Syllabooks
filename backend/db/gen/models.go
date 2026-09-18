@@ -215,14 +215,15 @@ type Session struct {
 }
 
 type User struct {
-	ID            uuid.UUID
-	OauthProvider *string
-	OauthSubject  *string
-	DisplayName   string
-	Code          *string
-	PasswordHash  *string
-	Email         *string
-	Status        UserStatus
-	IsAdmin       bool
-	CreatedAt     time.Time
+	ID                    uuid.UUID
+	OauthProvider         *string
+	OauthSubject          *string
+	DisplayName           string
+	Code                  *string
+	PasswordHash          *string
+	Email                 *string
+	Status                UserStatus
+	IsAdmin               bool
+	CreatedAt             time.Time
+	OnboardingCompletedAt *time.Time
 }

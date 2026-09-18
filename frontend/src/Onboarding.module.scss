@@ -1,0 +1,144 @@
+.screen {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100vh;
+  height: 100dvh;
+  margin-inline: calc(-1 * var(--gutter));
+  background: var(--color-paper);
+}
+
+.content {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4) var(--gutter) var(--space-5);
+  overscroll-behavior: contain;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.14;
+}
+
+.intro {
+  margin-top: 6px;
+  color: var(--color-ink-soft);
+}
+
+.levels {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-ink);
+}
+
+.levelList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.level {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+
+  > :first-child {
+    flex: none;
+    padding-top: 3px;
+  }
+}
+
+.levelName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.green {
+  color: var(--level-green-ink);
+}
+
+.yellow {
+  color: var(--level-yellow-ink);
+}
+
+.red {
+  color: var(--level-red-ink);
+}
+
+.levelDescription {
+  font-size: var(--text-hint);
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+}
+
+.levelNote {
+  margin-top: var(--space-3);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.rules {
+  margin-top: var(--space-5);
+}
+
+.rule {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-rule);
+
+  & + & {
+    margin-top: 14px;
+  }
+}
+
+.number {
+  min-width: 38px;
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-spine);
+}
+
+.ruleTitle {
+  font-family: var(--font-serif);
+  font-size: 17px;
+}
+
+.ruleText {
+  font-size: var(--text-hint);
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+}
+
+.footer {
+  padding: var(--space-4) var(--gutter) max(18px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-paper);
+}
+
+.error {
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--color-brick);
+  font-size: var(--text-hint);
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+}
+
+@media (max-height: 620px) {
+  .content {
+    padding-top: var(--space-3);
+  }
+
+  .levels {
+    margin-top: var(--space-4);
+  }
+}

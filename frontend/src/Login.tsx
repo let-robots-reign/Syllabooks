@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import clsx from "clsx";
+import { useLocation } from "react-router-dom";
 import { api, ApiError } from "./api.ts";
+import { rememberAuthReturnPath } from "./authResume.ts";
 import styles from "./Login.module.scss";
 import { Button, ButtonLink } from "./ui/Button.tsx";
 import { Eyebrow } from "./ui/Eyebrow.tsx";
@@ -20,6 +22,7 @@ type Props = {
 type Step = "start" | "code" | "password" | "notFound";
 
 export function Login({ onSignedIn, initialError }: Props) {
+  const location = useLocation();
   const [step, setStep] = useState<Step>("start");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
@@ -31,6 +34,10 @@ export function Login({ onSignedIn, initialError }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const shownCode = code.trim().toUpperCase();
+
+  const rememberOAuthDestination = () => {
+    rememberAuthReturnPath(location.pathname + location.search);
+  };
 
   const goTo = (next: Step) => {
     setError(null);
@@ -109,7 +116,11 @@ export function Login({ onSignedIn, initialError }: Props) {
               {notice}
             </p>
           )}
-          <ButtonLink href="/api/auth/yandex" className={styles.action}>
+          <ButtonLink
+            href="/api/auth/yandex"
+            className={styles.action}
+            onClick={rememberOAuthDestination}
+          >
             <img className={styles.icon} src="/oauth/yandex.svg" alt="" />
             Войти через Яндекс
           </ButtonLink>
@@ -117,6 +128,7 @@ export function Login({ onSignedIn, initialError }: Props) {
             href="/api/auth/vk"
             variant="secondary"
             className={styles.action}
+            onClick={rememberOAuthDestination}
           >
             <img className={styles.icon} src="/oauth/vk.svg" alt="" />
             Войти через VK
@@ -177,11 +189,19 @@ export function Login({ onSignedIn, initialError }: Props) {
             </Button>
           </form>
           <div className={styles.links}>
-            <a className={styles.link} href="/api/auth/yandex">
+            <a
+              className={styles.link}
+              href="/api/auth/yandex"
+              onClick={rememberOAuthDestination}
+            >
               Яндекс
             </a>
             <span className={styles.divider} aria-hidden="true" />
-            <a className={styles.link} href="/api/auth/vk">
+            <a
+              className={styles.link}
+              href="/api/auth/vk"
+              onClick={rememberOAuthDestination}
+            >
               VK
             </a>
           </div>

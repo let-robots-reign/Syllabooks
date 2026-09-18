@@ -103,3 +103,10 @@ INSERT INTO users (oauth_provider, oauth_subject, display_name)
 VALUES (sqlc.arg(oauth_provider)::text, sqlc.arg(oauth_subject)::text, @display_name)
 ON CONFLICT (oauth_provider, oauth_subject) DO UPDATE SET oauth_provider = excluded.oauth_provider
 RETURNING *;
+
+-- name: CompleteOnboarding :exec
+-- Idempotent so retries and two open tabs cannot change the first completion
+-- time or turn a successful dismissal into an error.
+UPDATE users
+SET onboarding_completed_at = COALESCE(onboarding_completed_at, now())
+WHERE id = @id;

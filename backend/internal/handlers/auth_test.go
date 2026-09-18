@@ -123,6 +123,29 @@ func TestCodeLogin(t *testing.T) {
 	env.request(t, "GET", "/api/me", second, nil, http.StatusUnauthorized)
 }
 
+func TestOnboardingCompletion(t *testing.T) {
+	env := newTestEnv(t, Server{})
+	id, code := env.newCodeUser(t)
+	// The onboarding gate is role-neutral: a newly promoted admin still sees it.
+	env.exec(t, "UPDATE users SET is_admin = true WHERE id = $1", id)
+	token := env.login(t, code, "учитель")
+
+	me := env.request(t, "GET", "/api/me", token, nil, http.StatusOK)
+	if me["onboarding_completed"] != false {
+		t.Fatalf("new user: onboarding_completed = %v, want false", me["onboarding_completed"])
+	}
+
+	// Completion requires a session and is safe to retry.
+	env.request(t, "POST", "/api/onboarding/complete", "", nil, http.StatusUnauthorized)
+	env.request(t, "POST", "/api/onboarding/complete", token, nil, http.StatusNoContent)
+	env.request(t, "POST", "/api/onboarding/complete", token, nil, http.StatusNoContent)
+
+	me = env.request(t, "GET", "/api/me", token, nil, http.StatusOK)
+	if me["onboarding_completed"] != true {
+		t.Fatalf("completed user: onboarding_completed = %v, want true", me["onboarding_completed"])
+	}
+}
+
 func TestBannedUserIsLockedOut(t *testing.T) {
 	env := newTestEnv(t, Server{})
 	id, code := env.newCodeUser(t)
@@ -140,6 +163,7 @@ func TestResetPassword(t *testing.T) {
 	admin := env.login(t, adminCode, "учитель")
 	studentID, studentCode := env.newCodeUser(t)
 	student := env.login(t, studentCode, "кошка1")
+	env.request(t, "POST", "/api/onboarding/complete", student, nil, http.StatusNoContent)
 	path := "/api/admin/users/" + studentID.String() + "/reset-password"
 
 	// To anyone but an admin, the route does not exist.
@@ -152,7 +176,11 @@ func TestResetPassword(t *testing.T) {
 	if check["has_password"] != false {
 		t.Fatalf("after reset: has_password = %v, want false", check["has_password"])
 	}
-	env.login(t, studentCode, "собака1")
+	student = env.login(t, studentCode, "собака1")
+	me := env.request(t, "GET", "/api/me", student, nil, http.StatusOK)
+	if me["onboarding_completed"] != true {
+		t.Fatalf("after password reset: onboarding_completed = %v, want true", me["onboarding_completed"])
+	}
 
 	env.request(t, "POST", "/api/admin/users/"+uuid.NewString()+"/reset-password", admin, nil, http.StatusNotFound)
 }
@@ -168,6 +196,9 @@ func TestOAuthLogin(t *testing.T) {
 			env.deleteUserAfter(t, me["id"])
 			if me["display_name"] != "Иван Петров" {
 				t.Fatalf("display_name = %v, want Иван Петров", me["display_name"])
+			}
+			if me["onboarding_completed"] != false {
+				t.Fatalf("new OAuth user: onboarding_completed = %v, want false", me["onboarding_completed"])
 			}
 
 			// The next login finds the same user, and the teacher's correction

@@ -26,10 +26,23 @@ func (q *Queries) BanAdminStudent(ctx context.Context, id uuid.UUID) (int64, err
 	return result.RowsAffected(), nil
 }
 
+const completeOnboarding = `-- name: CompleteOnboarding :exec
+UPDATE users
+SET onboarding_completed_at = COALESCE(onboarding_completed_at, now())
+WHERE id = $1
+`
+
+// Idempotent so retries and two open tabs cannot change the first completion
+// time or turn a successful dismissal into an error.
+func (q *Queries) CompleteOnboarding(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, completeOnboarding, id)
+	return err
+}
+
 const createCodeUser = `-- name: CreateCodeUser :one
 INSERT INTO users (display_name, code)
 VALUES ($1, $2::text)
-RETURNING id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at
+RETURNING id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at, onboarding_completed_at
 `
 
 type CreateCodeUserParams struct {
@@ -53,6 +66,7 @@ func (q *Queries) CreateCodeUser(ctx context.Context, arg CreateCodeUserParams) 
 		&i.Status,
 		&i.IsAdmin,
 		&i.CreatedAt,
+		&i.OnboardingCompletedAt,
 	)
 	return i, err
 }
@@ -109,7 +123,7 @@ func (q *Queries) GetAdminUserSummary(ctx context.Context) (GetAdminUserSummaryR
 }
 
 const getUserByCode = `-- name: GetUserByCode :one
-SELECT id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at FROM users WHERE code = $1::text
+SELECT id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at, onboarding_completed_at FROM users WHERE code = $1::text
 `
 
 // The caller uppercases the code, which makes login case-insensitive.
@@ -127,6 +141,7 @@ func (q *Queries) GetUserByCode(ctx context.Context, code string) (User, error) 
 		&i.Status,
 		&i.IsAdmin,
 		&i.CreatedAt,
+		&i.OnboardingCompletedAt,
 	)
 	return i, err
 }
@@ -313,7 +328,7 @@ const upsertOAuthUser = `-- name: UpsertOAuthUser :one
 INSERT INTO users (oauth_provider, oauth_subject, display_name)
 VALUES ($1::text, $2::text, $3)
 ON CONFLICT (oauth_provider, oauth_subject) DO UPDATE SET oauth_provider = excluded.oauth_provider
-RETURNING id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at
+RETURNING id, oauth_provider, oauth_subject, display_name, code, password_hash, email, status, is_admin, created_at, onboarding_completed_at
 `
 
 type UpsertOAuthUserParams struct {
@@ -339,6 +354,7 @@ func (q *Queries) UpsertOAuthUser(ctx context.Context, arg UpsertOAuthUserParams
 		&i.Status,
 		&i.IsAdmin,
 		&i.CreatedAt,
+		&i.OnboardingCompletedAt,
 	)
 	return i, err
 }

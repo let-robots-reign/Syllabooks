@@ -1,7 +1,12 @@
 import axios from "axios";
 
 // The signed-in user, from GET /api/me.
-export type Me = { id: string; display_name: string; is_admin: boolean };
+export type Me = {
+  id: string;
+  display_name: string;
+  is_admin: boolean;
+  onboarding_completed: boolean;
+};
 
 export type BookLevel = "green" | "yellow" | "red";
 
