@@ -489,3 +489,9 @@
     cursor: pointer;
   }
 }
+
+.cameraFailureActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}

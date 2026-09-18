@@ -19,13 +19,18 @@ import {
   type ReturnReasonResponse,
 } from "../api.ts";
 import { rememberAuthReturnPath } from "../authResume.ts";
+import {
+  cameraRecognitionTimeoutMs,
+  cameraRecoverySteps,
+  type CameraFailure,
+} from "../cameraRecovery.ts";
 import { BookCover } from "../catalog/BookVisuals.tsx";
 import {
   booksReadWord,
   formatDueDate,
   pageWord,
 } from "../catalog/presentation.ts";
-import { CameraViewport, type CameraFailure } from "../scan/Scan.tsx";
+import { CameraViewport } from "../scan/Scan.tsx";
 import { formatIsbn, isbnDigits, manualIsbnError } from "../scan/isbn.ts";
 import { Button } from "../ui/Button.tsx";
 import { Link } from "../ui/Link.tsx";
@@ -149,16 +154,21 @@ function StepProgress({ step }: { step: 1 | 2 }) {
 function QrViewport({
   onDetected,
   onFailure,
+  onUnreadable,
   paused,
 }: {
   onDetected: (value: string) => void;
   onFailure: (failure: CameraFailure) => void;
+  onUnreadable: () => void;
   paused: boolean;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const scanner = useRef<QrScanner | null>(null);
   const previousPaused = useRef(paused);
   const lastResult = useRef({ value: "", at: 0 });
+  const unreadableTimer = useRef<number | undefined>(undefined);
+  const scanCycle = useRef(0);
+  const scanSettled = useRef(true);
   const [starting, setStarting] = useState(true);
 
   useEffect(() => {
@@ -168,9 +178,15 @@ function QrViewport({
     }
     if (!video.current) return;
 
+    let disposed = false;
+    const cycle = ++scanCycle.current;
+    scanSettled.current = false;
     const qrScanner = new QrScanner(
       video.current,
       (result) => {
+        if (disposed || scanner.current !== qrScanner || scanSettled.current) {
+          return;
+        }
         const now = Date.now();
         if (
           result.data === lastResult.current.value &&
@@ -178,6 +194,8 @@ function QrViewport({
         ) {
           return;
         }
+        scanSettled.current = true;
+        window.clearTimeout(unreadableTimer.current);
         lastResult.current = { value: result.data, at: now };
         onDetected(result.data);
       },
@@ -187,11 +205,24 @@ function QrViewport({
         returnDetailedScanResult: true,
       },
     );
-    let disposed = false;
     scanner.current = qrScanner;
     qrScanner.start().then(
       () => {
-        if (!disposed) setStarting(false);
+        if (disposed) return;
+        setStarting(false);
+        unreadableTimer.current = window.setTimeout(() => {
+          if (
+            disposed ||
+            scanner.current !== qrScanner ||
+            scanCycle.current !== cycle ||
+            scanSettled.current
+          ) {
+            return;
+          }
+          scanSettled.current = true;
+          void qrScanner.pause(true);
+          onUnreadable();
+        }, cameraRecognitionTimeoutMs);
       },
       (error: unknown) => {
         if (disposed) return;
@@ -206,29 +237,81 @@ function QrViewport({
 
     return () => {
       disposed = true;
+      scanCycle.current += 1;
+      scanSettled.current = true;
+      window.clearTimeout(unreadableTimer.current);
       scanner.current = null;
       qrScanner.destroy();
     };
-  }, [onDetected, onFailure]);
+  }, [onDetected, onFailure, onUnreadable]);
 
   useEffect(() => {
     if (previousPaused.current === paused) return;
     previousPaused.current = paused;
     const qrScanner = scanner.current;
     if (!qrScanner) return;
+    const cycle = ++scanCycle.current;
+    let cancelled = false;
+    window.clearTimeout(unreadableTimer.current);
+    scanSettled.current = paused;
+
     if (paused) {
       void qrScanner.pause();
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
-    void qrScanner.start().catch((error: unknown) => {
-      const name = cameraErrorName(error);
-      onFailure(
-        name === "NotAllowedError" || name === "SecurityError"
-          ? "denied"
-          : "unavailable",
-      );
-    });
-  }, [onFailure, paused]);
+
+    void qrScanner.start().then(
+      () => {
+        if (
+          cancelled ||
+          scanner.current !== qrScanner ||
+          scanCycle.current !== cycle
+        ) {
+          return;
+        }
+        unreadableTimer.current = window.setTimeout(() => {
+          if (
+            cancelled ||
+            scanner.current !== qrScanner ||
+            scanCycle.current !== cycle ||
+            scanSettled.current
+          ) {
+            return;
+          }
+          scanSettled.current = true;
+          void qrScanner.pause(true);
+          onUnreadable();
+        }, cameraRecognitionTimeoutMs);
+      },
+      (error: unknown) => {
+        if (
+          cancelled ||
+          scanner.current !== qrScanner ||
+          scanCycle.current !== cycle
+        ) {
+          return;
+        }
+        scanSettled.current = true;
+        const name = cameraErrorName(error);
+        onFailure(
+          name === "NotAllowedError" || name === "SecurityError"
+            ? "denied"
+            : "unavailable",
+        );
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      if (scanCycle.current === cycle) {
+        scanCycle.current += 1;
+        scanSettled.current = true;
+        window.clearTimeout(unreadableTimer.current);
+      }
+    };
+  }, [onFailure, onUnreadable, paused]);
 
   return (
     <div className={styles.viewport}>
@@ -246,19 +329,44 @@ function QrViewport({
 function CameraRecovery({
   failure,
   onManual,
+  manualLabel = "Ввести код вручную",
 }: {
   failure: CameraFailure;
   onManual: () => void;
+  manualLabel?: string;
 }) {
+  const steps = cameraRecoverySteps();
+  const denied = failure === "denied";
+
+  return (
+    <div className={styles.cameraRecovery} role="alert">
+      <strong>{denied ? "Камере не дали доступ" : "Камера недоступна"}</strong>
+      <p>Код можно ввести руками или вернуть книгу без сканирования.</p>
+      {denied && (
+        <ol>
+          {steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      )}
+      <Button variant="secondary" onClick={onManual}>
+        {manualLabel}
+      </Button>
+    </div>
+  );
+}
+
+function UnreadableCode({ kind }: { kind: "shelf" | "book" }) {
   return (
     <div className={styles.cameraRecovery} role="alert">
       <strong>
-        {failure === "denied" ? "Камере не дали доступ" : "Камера недоступна"}
+        {kind === "shelf" ? "Код полки не распознан" : "Штрих-код не распознан"}
       </strong>
-      <p>Код можно ввести руками или вернуть книгу без сканирования.</p>
-      <Button variant="secondary" onClick={onManual}>
-        Ввести код вручную
-      </Button>
+      <p>
+        {kind === "shelf"
+          ? "Добавь света и попробуй ещё раз — или введи код под QR вручную."
+          : "Добавь света, протри камеру и попробуй ещё раз — или введи ISBN вручную."}
+      </p>
     </div>
   );
 }
@@ -266,16 +374,19 @@ function CameraRecovery({
 function ScanFooter({
   manualLabel,
   onManual,
+  onRetry,
   onSkip,
   disabled = false,
 }: {
   manualLabel: string;
   onManual: () => void;
+  onRetry?: () => void;
   onSkip: () => void;
   disabled?: boolean;
 }) {
   return (
     <footer className={styles.scanFooter}>
+      {onRetry && <Button onClick={onRetry}>Ещё раз камерой</Button>}
       <Button variant="secondary" onClick={onManual} disabled={disabled}>
         {manualLabel}
       </Button>
@@ -295,16 +406,22 @@ function ShelfCameraScreen({
   error,
   busy,
   failure,
+  unreadable,
   onDetected,
   onFailure,
+  onUnreadable,
+  onRetryCamera,
   onManual,
   onSkip,
 }: {
   error: string | null;
   busy: boolean;
   failure: CameraFailure | null;
+  unreadable: boolean;
   onDetected: (value: string) => void;
   onFailure: (failure: CameraFailure) => void;
+  onUnreadable: () => void;
+  onRetryCamera: () => void;
   onManual: () => void;
   onSkip: () => void;
 }) {
@@ -316,12 +433,15 @@ function ShelfCameraScreen({
         <h1>Код рядом с полкой</h1>
         <p>Он приклеен на дверце шкафа у окна. Сначала полка, потом книга.</p>
       </div>
-      {failure ? (
+      {unreadable ? (
+        <UnreadableCode kind="shelf" />
+      ) : failure ? (
         <CameraRecovery failure={failure} onManual={onManual} />
       ) : (
         <QrViewport
           onDetected={onDetected}
           onFailure={onFailure}
+          onUnreadable={onUnreadable}
           paused={busy}
         />
       )}
@@ -330,6 +450,7 @@ function ShelfCameraScreen({
       <ScanFooter
         manualLabel="Ввести код вручную"
         onManual={onManual}
+        onRetry={unreadable ? onRetryCamera : undefined}
         onSkip={onSkip}
         disabled={busy}
       />
@@ -399,16 +520,22 @@ function BookCameraScreen({
   loan,
   error,
   failure,
+  unreadable,
   onDetected,
   onFailure,
+  onUnreadable,
+  onRetryCamera,
   onManual,
   onSkip,
 }: {
   loan: LoanDetail;
   error: string | null;
   failure: CameraFailure | null;
+  unreadable: boolean;
   onDetected: (value: string) => void;
   onFailure: (failure: CameraFailure) => void;
+  onUnreadable: () => void;
+  onRetryCamera: () => void;
   onManual: () => void;
   onSkip: () => void;
 }) {
@@ -420,15 +547,26 @@ function BookCameraScreen({
         <h1>Теперь штрих-код книги</h1>
         <p>{loan.book.title} — задняя обложка, внизу справа.</p>
       </div>
-      {failure ? (
-        <CameraRecovery failure={failure} onManual={onManual} />
+      {unreadable ? (
+        <UnreadableCode kind="book" />
+      ) : failure ? (
+        <CameraRecovery
+          failure={failure}
+          onManual={onManual}
+          manualLabel="Ввести ISBN вручную"
+        />
       ) : (
-        <CameraViewport onDetected={onDetected} onFailure={onFailure} />
+        <CameraViewport
+          onDetected={onDetected}
+          onFailure={onFailure}
+          onUnreadable={onUnreadable}
+        />
       )}
       {error && <p className={styles.cameraError}>{error}</p>}
       <ScanFooter
         manualLabel="Ввести ISBN вручную"
         onManual={onManual}
+        onRetry={unreadable ? onRetryCamera : undefined}
         onSkip={onSkip}
       />
     </div>
@@ -803,6 +941,8 @@ export function Return() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [shelfFailure, setShelfFailure] = useState<CameraFailure | null>(null);
   const [bookFailure, setBookFailure] = useState<CameraFailure | null>(null);
+  const [shelfUnreadable, setShelfUnreadable] = useState(false);
+  const [bookUnreadable, setBookUnreadable] = useState(false);
   const shelfLocked = useRef(false);
   const bookLocked = useRef(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -1017,6 +1157,18 @@ export function Return() {
     (value: string) => checkShelf(value, "scan"),
     [checkShelf],
   );
+  const handleShelfUnreadable = useCallback(() => setShelfUnreadable(true), []);
+  const retryShelfCamera = useCallback(() => setShelfUnreadable(false), []);
+  const handleBookUnreadable = useCallback(() => setBookUnreadable(true), []);
+  const retryBookCamera = useCallback(() => setBookUnreadable(false), []);
+  const handleBookDetected = useCallback(
+    (value: string) => {
+      if (shelfEvidence) {
+        closeLoan(shelfEvidence, { method: "scan", value });
+      }
+    },
+    [closeLoan, shelfEvidence],
+  );
 
   if (phase === "loading") return <PendingScreen />;
   if (phase === "load-error") {
@@ -1075,11 +1227,15 @@ export function Return() {
         error={shelfError}
         busy={shelfBusy}
         failure={shelfFailure}
+        unreadable={shelfUnreadable}
         onDetected={handleShelfDetected}
         onFailure={setShelfFailure}
+        onUnreadable={handleShelfUnreadable}
+        onRetryCamera={retryShelfCamera}
         onManual={() => {
           setShelfError(null);
           setShelfFailure(null);
+          setShelfUnreadable(false);
           setPhase("shelf-manual");
         }}
         onSkip={() =>
@@ -1096,6 +1252,7 @@ export function Return() {
         onSubmit={(value) => checkShelf(value, "manual")}
         onCamera={() => {
           setShelfError(null);
+          setShelfUnreadable(false);
           setPhase("shelf-camera");
         }}
         onSkip={() =>
@@ -1110,14 +1267,15 @@ export function Return() {
         loan={loan}
         error={bookError}
         failure={bookFailure}
-        onDetected={(value) => {
-          if (shelfEvidence)
-            closeLoan(shelfEvidence, { method: "scan", value });
-        }}
+        unreadable={bookUnreadable}
+        onDetected={handleBookDetected}
         onFailure={setBookFailure}
+        onUnreadable={handleBookUnreadable}
+        onRetryCamera={retryBookCamera}
         onManual={() => {
           setBookError(null);
           setBookFailure(null);
+          setBookUnreadable(false);
           setPhase("book-manual");
         }}
         onSkip={() => {
@@ -1138,6 +1296,7 @@ export function Return() {
         }}
         onCamera={() => {
           setBookError(null);
+          setBookUnreadable(false);
           setPhase("book-camera");
         }}
         onSkip={() => {

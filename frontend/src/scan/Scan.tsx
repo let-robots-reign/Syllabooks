@@ -10,6 +10,11 @@ import clsx from "clsx";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError, type BorrowResponse } from "../api.ts";
 import { bookLevel } from "../bookLevels.ts";
+import {
+  cameraRecognitionTimeoutMs,
+  cameraRecoverySteps,
+  type CameraFailure,
+} from "../cameraRecovery.ts";
 import { BookCover, LevelBars } from "../catalog/BookVisuals.tsx";
 import { formatDueDate, pageWord } from "../catalog/presentation.ts";
 import { Button, ButtonLink } from "../ui/Button.tsx";
@@ -23,7 +28,6 @@ import {
 } from "./isbn.ts";
 
 type ScanMode = "camera" | "manual";
-export type CameraFailure = "denied" | "unavailable";
 type BorrowAttempt =
   | { status: "pending"; isbn: string; source: ScanMode }
   | { status: "success"; result: BorrowResponse }
@@ -78,9 +82,11 @@ const releaseScanner = async (
 export function CameraViewport({
   onDetected,
   onFailure,
+  onUnreadable,
 }: {
   onDetected: (value: string) => void;
   onFailure: (failure: CameraFailure) => void;
+  onUnreadable: () => void;
 }) {
   const target = useRef<HTMLDivElement>(null);
   const [starting, setStarting] = useState(true);
@@ -90,6 +96,7 @@ export function CameraViewport({
     let quagga: QuaggaJSStatic | undefined;
     let videoTarget: HTMLDivElement | null = null;
     let detectedHandler: ((result: QuaggaJSResultObject) => void) | undefined;
+    let unreadableTimer: number | undefined;
 
     const start = async () => {
       if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
@@ -120,6 +127,7 @@ export function CameraViewport({
 
           if (matchingReads >= 2 && !disposed) {
             detectionComplete = true;
+            window.clearTimeout(unreadableTimer);
             stopStreamTracks(quagga?.CameraAccess.getActiveStream() ?? null);
             onDetected(value);
           }
@@ -161,6 +169,12 @@ export function CameraViewport({
         quagga.onDetected(detectedHandler);
         quagga.start();
         setStarting(false);
+        unreadableTimer = window.setTimeout(() => {
+          if (disposed || detectionComplete) return;
+          detectionComplete = true;
+          stopStreamTracks(quagga?.CameraAccess.getActiveStream() ?? null);
+          onUnreadable();
+        }, cameraRecognitionTimeoutMs);
       } catch (error) {
         if (quagga) await releaseScanner(quagga, videoTarget);
         if (disposed) return;
@@ -178,11 +192,12 @@ export function CameraViewport({
 
     return () => {
       disposed = true;
+      window.clearTimeout(unreadableTimer);
       if (!quagga) return;
       if (detectedHandler) quagga.offDetected(detectedHandler);
       void releaseScanner(quagga, videoTarget);
     };
-  }, [onDetected, onFailure]);
+  }, [onDetected, onFailure, onUnreadable]);
 
   return (
     <div className={styles.viewport} ref={target}>
@@ -258,10 +273,12 @@ function CameraScreen({
   onManual,
   onDetected,
   onFailure,
+  onUnreadable,
 }: {
   onManual: () => void;
   onDetected: (value: string) => void;
   onFailure: (failure: CameraFailure) => void;
+  onUnreadable: () => void;
 }) {
   return (
     <div className={clsx(styles.screen, styles.cameraScreen)}>
@@ -273,7 +290,11 @@ function CameraScreen({
         />
       </div>
 
-      <CameraViewport onDetected={onDetected} onFailure={onFailure} />
+      <CameraViewport
+        onDetected={onDetected}
+        onFailure={onFailure}
+        onUnreadable={onUnreadable}
+      />
       <p className={styles.cameraHelp}>
         Держи книгу в 10–15 см, чтобы полоски попали между уголками
       </p>
@@ -400,6 +421,7 @@ function CameraErrorScreen({
   onManual: () => void;
 }) {
   const denied = failure === "denied";
+  const recoverySteps = cameraRecoverySteps();
 
   return (
     <div className={clsx(styles.screen, styles.paperScreen)}>
@@ -420,15 +442,47 @@ function CameraErrorScreen({
           <div className={styles.recovery}>
             <div className={styles.eyebrow}>Если захочешь включить</div>
             <ol>
-              <li>Замок рядом с адресом сайта</li>
-              <li>«Разрешения» → «Камера»</li>
-              <li>Обновить страницу</li>
+              {recoverySteps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
             </ol>
           </div>
         )}
       </div>
       <footer className={styles.bottomAction}>
         <Button onClick={onManual}>Ввести ISBN вручную</Button>
+      </footer>
+    </div>
+  );
+}
+
+function UnreadableBarcodeScreen({
+  onRetry,
+  onManual,
+}: {
+  onRetry: () => void;
+  onManual: () => void;
+}) {
+  return (
+    <div className={clsx(styles.screen, styles.paperScreen)}>
+      <div className={styles.top}>
+        <ScreenHeader />
+      </div>
+      <div className={styles.borrowError} role="alert">
+        <div className={styles.eyebrow}>Штрих-код не распознан</div>
+        <div className={styles.errorRule}>
+          <h1>Не получилось прочитать полоски</h1>
+          <p>
+            Добавь света, протри камеру и попробуй ещё раз — или введи 13 цифр
+            ISBN под штрих-кодом.
+          </p>
+        </div>
+      </div>
+      <footer className={styles.resultActions}>
+        <Button onClick={onManual}>Ввести ISBN</Button>
+        <Button variant="secondary" onClick={onRetry}>
+          Ещё раз камерой
+        </Button>
       </footer>
     </div>
   );
@@ -546,12 +600,12 @@ function BorrowErrorScreen({
   );
 
   if (error.code === "book_not_found" || error.code === "invalid_isbn") {
-    eyebrow = "Штрих-код не найден";
-    title = "Такого кода нет в каталоге";
-    lead =
-      error.code === "invalid_isbn"
-        ? "Проверь 13 цифр ISBN под штрих-кодом на задней обложке."
-        : "Возможно, книгу ещё не добавили. Проверь ISBN или попробуй отсканировать ещё раз.";
+    const invalid = error.code === "invalid_isbn";
+    eyebrow = invalid ? "ISBN введён неверно" : "Книги нет в каталоге";
+    title = invalid ? "Проверь 13 цифр ISBN" : "Такого кода нет в каталоге";
+    lead = invalid
+      ? "Сверь цифры под штрих-кодом на задней обложке: возможно, одна из них пропущена или перепутана."
+      : "Штрих-код распознан, но книгу ещё не добавили. Проверь ISBN или обратись к учителю.";
     actions = (
       <>
         <Button onClick={onManual}>
@@ -591,9 +645,17 @@ function BorrowErrorScreen({
     actions = <ButtonLink href="/">Вернуться в каталог</ButtonLink>;
   } else if (error.status === 0) {
     eyebrow = "Нет связи с сервером";
-    title = "Не удалось проверить выдачу";
+    title = "Не удалось получить подтверждение";
     lead =
-      "ISBN сохранён. Проверь интернет и повтори запрос — если книга уже записалась, появится то же подтверждение.";
+      "ISBN сохранён. Проверь интернет и повтори тот же запрос — если книга уже записалась, появится подтверждение без новой выдачи.";
+    actions = (
+      <>
+        <Button onClick={onRetry}>Проверить ещё раз</Button>
+        <ButtonLink href="/" variant="secondary">
+          Вернуться в каталог
+        </ButtonLink>
+      </>
+    );
   } else if (error.status === 401) {
     eyebrow = "Сессия закончилась";
     title = "Нужно войти заново";
@@ -628,6 +690,7 @@ export function Scan() {
     isWideViewport() ? "manual" : "camera",
   );
   const [failure, setFailure] = useState<CameraFailure | null>(null);
+  const [unreadable, setUnreadable] = useState(false);
   const [attempt, setAttempt] = useState<BorrowAttempt | null>(null);
   const [manualInitial, setManualInitial] = useState("");
   const submissionLocked = useRef(false);
@@ -651,6 +714,7 @@ export function Scan() {
 
   const showCamera = useCallback(() => {
     setFailure(null);
+    setUnreadable(false);
     setAttempt(null);
     setManualInitial("");
     submissionLocked.current = false;
@@ -659,6 +723,7 @@ export function Scan() {
 
   const showManual = useCallback(() => {
     setFailure(null);
+    setUnreadable(false);
     setAttempt(null);
     setManualInitial("");
     submissionLocked.current = false;
@@ -727,6 +792,12 @@ export function Scan() {
     return <CameraErrorScreen failure={failure} onManual={showManual} />;
   }
 
+  if (mode === "camera" && unreadable) {
+    return (
+      <UnreadableBarcodeScreen onRetry={showCamera} onManual={showManual} />
+    );
+  }
+
   if (mode === "manual") {
     return (
       <ManualScreen
@@ -742,6 +813,7 @@ export function Scan() {
       onManual={showManual}
       onDetected={cameraDetected}
       onFailure={cameraFailed}
+      onUnreadable={() => setUnreadable(true)}
     />
   );
 }

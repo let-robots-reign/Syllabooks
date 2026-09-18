@@ -232,6 +232,11 @@ const client = axios.create({
   withCredentials: true,
 });
 
+export const sessionExpiredEvent = "syllabooks:session-expired";
+
+const reportsExpiredSession = (path: string): boolean =>
+  path !== "/me" && !path.startsWith("/auth/");
+
 export const api = async <T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
@@ -252,6 +257,9 @@ export const api = async <T>(
         0,
         "Нет связи с сервером. Проверь интернет и попробуй ещё раз.",
       );
+    }
+    if (status === 401 && reportsExpiredSession(path)) {
+      window.dispatchEvent(new Event(sessionExpiredEvent));
     }
     const details = error.response?.data ?? {};
     throw new ApiError(

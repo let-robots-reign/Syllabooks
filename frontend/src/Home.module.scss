@@ -219,6 +219,28 @@
   text-align: center;
 }
 
+.emptyCatalogue {
+  padding-top: 18px;
+  text-align: left;
+}
+
+.emptyShelf {
+  height: 108px;
+  margin-bottom: 18px;
+  border: 1px solid var(--color-border);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-sand) 0 8px,
+    var(--color-hatch) 8px 16px
+  );
+}
+
+.unavailableState {
+  margin-bottom: var(--space-6);
+  padding-top: 26px;
+  border-top: 1px solid var(--color-ink);
+}
+
 .state {
   h2 {
     color: var(--color-ink);

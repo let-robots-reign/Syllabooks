@@ -7,7 +7,13 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { api, ApiError, oauthRedirectError, type Me } from "./api.ts";
+import {
+  api,
+  ApiError,
+  oauthRedirectError,
+  sessionExpiredEvent,
+  type Me,
+} from "./api.ts";
 import styles from "./App.module.scss";
 import { AdminBookForm } from "./admin/AdminBookForm.tsx";
 import { AdminBooks } from "./admin/AdminBooks.tsx";
@@ -48,6 +54,19 @@ function App() {
       current = false;
     };
   }, [authAttempt]);
+
+  useEffect(() => {
+    const handleExpiredSession = () => {
+      setError(
+        "Сессия закончилась. Войди заново — после входа вернём тебя сюда.",
+      );
+      setMe(null);
+    };
+    window.addEventListener(sessionExpiredEvent, handleExpiredSession);
+    return () => {
+      window.removeEventListener(sessionExpiredEvent, handleExpiredSession);
+    };
+  }, []);
 
   useEffect(() => {
     if (location.pathname === "/auth/callback") {

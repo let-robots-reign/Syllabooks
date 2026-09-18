@@ -29,6 +29,7 @@ const isBookLevel = (value: string | null): value is BookLevel =>
 export function Home({ me }: { me: Me }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [catalog, setCatalog] = useState<CatalogResponse>();
+  const [catalogLoadedAt, setCatalogLoadedAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<Record<BookLevel, boolean>>(() => {
     const requestedLevel = searchParams.get("level");
@@ -54,7 +55,10 @@ export function Home({ me }: { me: Me }) {
     let current = true;
     api<CatalogResponse>("/books").then(
       (result) => {
-        if (current) setCatalog(result);
+        if (current) {
+          setCatalog(result);
+          setCatalogLoadedAt(Date.now());
+        }
       },
       (err: ApiError) => {
         if (current) setError(err.message);
@@ -70,6 +74,21 @@ export function Home({ me }: { me: Me }) {
     [active, catalog],
   );
 
+  const nearestUnavailable = useMemo(() => {
+    const unavailable = visibleBooks.filter((book) => book.current_loan);
+    if (
+      unavailable.length !== visibleBooks.length ||
+      unavailable.length === 0
+    ) {
+      return null;
+    }
+    return unavailable.toSorted(
+      (left, right) =>
+        new Date(left.current_loan!.due_at).getTime() -
+        new Date(right.current_loan!.due_at).getTime(),
+    )[0];
+  }, [visibleBooks]);
+
   const toggleLevel = (level: BookLevel) => {
     if (searchParams.has("level")) setSearchParams({}, { replace: true });
     setActive((current) => {
@@ -78,7 +97,19 @@ export function Home({ me }: { me: Me }) {
     });
   };
 
+  const showAllLevels = () => {
+    setActive(allLevels);
+    if (searchParams.has("level")) setSearchParams({}, { replace: true });
+  };
+
   const activeCount = Object.values(active).filter(Boolean).length;
+  const onlyActiveLevel =
+    activeCount === 1
+      ? bookLevel(
+          (Object.entries(active).find(([, enabled]) => enabled)?.[0] ??
+            "green") as BookLevel,
+        )
+      : null;
   const finishedCount = catalog?.finished_count;
   const myLoan = catalog?.my_loan;
 
@@ -156,21 +187,56 @@ export function Home({ me }: { me: Me }) {
         ) : catalog === undefined ? (
           <p className={styles.loading}>Загрузка каталога…</p>
         ) : catalog.books.length === 0 ? (
-          <div className={styles.state}>
+          <div className={clsx(styles.state, styles.emptyCatalogue)}>
+            <div className={styles.emptyShelf} aria-hidden="true" />
             <h2>Полка пока пустая</h2>
-            <p>Учитель добавляет книги по штрих-кодам. Зайди попозже.</p>
+            <p>
+              Учитель добавляет книги по штрих-кодам. Зайди завтра — или напомни
+              ему на уроке.
+            </p>
           </div>
         ) : visibleBooks.length === 0 ? (
           <div className={styles.state}>
             <h2>На выбранных уровнях книг пока нет</h2>
             <p>Выбери другой уровень и посмотри, что есть на полке.</p>
+            <button type="button" onClick={showAllLevels}>
+              Показать все уровни
+            </button>
           </div>
         ) : (
-          <div className={styles.books}>
-            {visibleBooks.map((book) => (
-              <BookCard book={book} key={book.id} />
-            ))}
-          </div>
+          <>
+            {nearestUnavailable?.current_loan && (
+              <div className={clsx(styles.state, styles.unavailableState)}>
+                <h2>
+                  {onlyActiveLevel
+                    ? `Все книги уровня «${onlyActiveLevel.label}» сейчас на руках`
+                    : "Все книги на выбранных уровнях сейчас на руках"}
+                </h2>
+                <p>
+                  Ближайшая — {nearestUnavailable.title} у{" "}
+                  {nearestUnavailable.current_loan.borrower_name}:{" "}
+                  {new Date(nearestUnavailable.current_loan.due_at).getTime() <
+                  catalogLoadedAt
+                    ? "срок уже прошёл"
+                    : `до ${formatDueDate(nearestUnavailable.current_loan.due_at)}`}
+                  .{" "}
+                  {activeCount < 3
+                    ? "Пока можно посмотреть другие уровни."
+                    : "Спроси, дочитана ли книга: возможно, её вернут раньше."}
+                </p>
+                {activeCount < 3 && (
+                  <button type="button" onClick={showAllLevels}>
+                    Показать все уровни
+                  </button>
+                )}
+              </div>
+            )}
+            <div className={styles.books}>
+              {visibleBooks.map((book) => (
+                <BookCard book={book} key={book.id} />
+              ))}
+            </div>
+          </>
         )}
       </section>
 

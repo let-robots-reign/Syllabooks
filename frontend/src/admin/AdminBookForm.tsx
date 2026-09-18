@@ -17,9 +17,10 @@ import {
   type BookInput,
   type BookLookup,
 } from "../api.ts";
+import { type CameraFailure } from "../cameraRecovery.ts";
 import { Link } from "../ui/Link.tsx";
 import { bookLevels } from "../bookLevels.ts";
-import { CameraViewport, type CameraFailure } from "../scan/Scan.tsx";
+import { CameraViewport } from "../scan/Scan.tsx";
 import styles from "./AdminBookForm.module.scss";
 
 const blankBook: BookInput = {
@@ -54,6 +55,7 @@ export function AdminBookForm() {
   const [cameraFailure, setCameraFailure] = useState<CameraFailure | null>(
     null,
   );
+  const [scanUnreadable, setScanUnreadable] = useState(false);
 
   useEffect(() => {
     if (isNew) {
@@ -127,6 +129,7 @@ export function AdminBookForm() {
 
   const openScanner = () => {
     setCameraFailure(null);
+    setScanUnreadable(false);
     setScanAttempt((attempt) => attempt + 1);
     setScanning(true);
   };
@@ -192,6 +195,7 @@ export function AdminBookForm() {
       setLookupSource(null);
       setLookupError(null);
       setCameraFailure(null);
+      setScanUnreadable(false);
       setScanning(false);
       void lookup(value, true);
     },
@@ -522,27 +526,37 @@ export function AdminBookForm() {
               </button>
             </header>
 
-            {cameraFailure ? (
+            {cameraFailure || scanUnreadable ? (
               <div className={styles.cameraFailure} role="alert">
                 <strong>
-                  {cameraFailure === "denied"
-                    ? "Нет доступа к камере"
-                    : "Камера недоступна"}
+                  {scanUnreadable
+                    ? "Штрих-код не распознан"
+                    : cameraFailure === "denied"
+                      ? "Нет доступа к камере"
+                      : "Камера недоступна"}
                 </strong>
                 <p>
-                  {cameraFailure === "denied"
-                    ? "Разрешите сайту использовать камеру в настройках браузера или введите ISBN вручную."
-                    : "На этом устройстве не получилось открыть камеру. ISBN можно ввести вручную."}
+                  {scanUnreadable
+                    ? "Добавьте света, протрите камеру и попробуйте ещё раз — или введите ISBN вручную."
+                    : cameraFailure === "denied"
+                      ? "Разрешите сайту использовать камеру в настройках браузера или введите ISBN вручную."
+                      : "На этом устройстве не получилось открыть камеру. ISBN можно ввести вручную."}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCameraFailure(null);
-                    setScanAttempt((attempt) => attempt + 1);
-                  }}
-                >
-                  Попробовать снова
-                </button>
+                <div className={styles.cameraFailureActions}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCameraFailure(null);
+                      setScanUnreadable(false);
+                      setScanAttempt((attempt) => attempt + 1);
+                    }}
+                  >
+                    Попробовать снова
+                  </button>
+                  <button type="button" onClick={() => setScanning(false)}>
+                    Ввести ISBN вручную
+                  </button>
+                </div>
               </div>
             ) : (
               <div className={styles.scannerViewport}>
@@ -550,6 +564,7 @@ export function AdminBookForm() {
                   key={scanAttempt}
                   onDetected={scannedISBN}
                   onFailure={scanFailed}
+                  onUnreadable={() => setScanUnreadable(true)}
                 />
               </div>
             )}
