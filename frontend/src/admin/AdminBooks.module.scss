@@ -150,7 +150,19 @@
 }
 
 .dragging {
-  opacity: 0.45;
+  position: relative;
+  z-index: 1;
+  background: var(--color-paper);
+  outline: 2px solid var(--color-ink);
+  outline-offset: -2px;
+  box-shadow: 0 8px 20px rgb(46 42 38 / 18%);
+  opacity: 0.72;
+  transform: scale(0.995);
+
+  .dragHandle {
+    color: var(--color-ink);
+    cursor: grabbing;
+  }
 }
 
 .green,

@@ -208,6 +208,7 @@ export function AdminBooks() {
                   draggedID === book.id && styles.dragging,
                 )}
                 key={book.id}
+                data-book-row
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
                   event.preventDefault();
@@ -224,6 +225,18 @@ export function AdminBooks() {
                     onDragStart={(event) => {
                       event.dataTransfer.effectAllowed = "move";
                       event.dataTransfer.setData("text/plain", book.id);
+                      const row = event.currentTarget.closest<HTMLElement>(
+                        "[data-book-row]",
+                      );
+                      if (row) {
+                        const bounds = row.getBoundingClientRect();
+                        row.classList.add(styles.dragging);
+                        event.dataTransfer.setDragImage(
+                          row,
+                          event.clientX - bounds.left,
+                          event.clientY - bounds.top,
+                        );
+                      }
                       setDraggedID(book.id);
                     }}
                     onDragEnd={() => setDraggedID(null)}
