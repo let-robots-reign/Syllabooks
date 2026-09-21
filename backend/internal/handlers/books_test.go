@@ -167,6 +167,63 @@ func TestCreateBookDownloadsProviderCover(t *testing.T) {
 	})
 }
 
+func TestAdminCanReorderBooksForAdminAndPublicCatalogues(t *testing.T) {
+	env := newTestEnv(t, Server{})
+	adminID, adminCode := env.newCodeUser(t)
+	env.exec(t, "UPDATE users SET is_admin = true WHERE id = $1", adminID)
+	adminToken := env.login(t, adminCode, "учитель")
+	_, studentCode := env.newCodeUser(t)
+	studentToken := env.login(t, studentCode, "ученик")
+
+	firstID, secondID := uuid.New(), uuid.New()
+	env.exec(t, `INSERT INTO books (id, title, author, level, page_count)
+		VALUES ($1, 'Order First', 'Test Author', 'green', 10),
+		       ($2, 'Order Second', 'Test Author', 'green', 10)`, firstID, secondID)
+	t.Cleanup(func() {
+		env.pool.Exec(context.Background(), "DELETE FROM books WHERE id = ANY($1)", []uuid.UUID{firstID, secondID})
+	})
+
+	status, listed := bookRequest[[]bookResponse](t, env, http.MethodGet, "/api/admin/books", adminToken, nil)
+	if status != http.StatusOK {
+		t.Fatalf("list before reorder: status=%d", status)
+	}
+	orderedIDs := make([]uuid.UUID, len(listed))
+	for index, book := range listed {
+		orderedIDs[len(listed)-1-index] = book.ID
+	}
+	status, _ = bookRequest[map[string]any](t, env, http.MethodPut, "/api/admin/books/order", adminToken, map[string]any{"ids": orderedIDs})
+	if status != http.StatusNoContent {
+		t.Fatalf("reorder: status=%d", status)
+	}
+
+	status, reordered := bookRequest[[]bookResponse](t, env, http.MethodGet, "/api/admin/books", adminToken, nil)
+	if status != http.StatusOK || len(reordered) != len(orderedIDs) {
+		t.Fatalf("list after reorder: status=%d books=%+v", status, reordered)
+	}
+	for index, id := range orderedIDs {
+		if reordered[index].ID != id || reordered[index].Ord != int32(index+1) {
+			t.Fatalf("book %d after reorder = %+v, want id=%s ord=%d", index, reordered[index], id, index+1)
+		}
+	}
+
+	type catalogPayload struct {
+		Books []bookResponse `json:"books"`
+	}
+	status, catalogue := bookRequest[catalogPayload](t, env, http.MethodGet, "/api/books", studentToken, nil)
+	if status != http.StatusOK || bookIndex(catalogue.Books, secondID) >= bookIndex(catalogue.Books, firstID) {
+		t.Fatalf("public catalogue did not preserve reordered books: status=%d books=%+v", status, catalogue.Books)
+	}
+}
+
+func bookIndex(books []bookResponse, id uuid.UUID) int {
+	for index, book := range books {
+		if book.ID == id {
+			return index
+		}
+	}
+	return len(books)
+}
+
 func bookRequest[T any](t *testing.T, env *testEnv, method, path, token string, body any) (int, T) {
 	t.Helper()
 	var reader io.Reader

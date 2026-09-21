@@ -14,7 +14,7 @@ import (
 const createBook = `-- name: CreateBook :one
 INSERT INTO books (isbn, title, author, level, page_count, description)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
 `
 
 type CreateBookParams struct {
@@ -49,6 +49,7 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		&i.CreatedAt,
 		&i.Description,
 		&i.LostAt,
+		&i.Ord,
 	)
 	return i, err
 }
@@ -67,7 +68,7 @@ func (q *Queries) DeleteBook(ctx context.Context, id uuid.UUID) (*string, error)
 }
 
 const getBook = `-- name: GetBook :one
-SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
 FROM books
 WHERE id = $1
 `
@@ -88,14 +89,42 @@ func (q *Queries) GetBook(ctx context.Context, id uuid.UUID) (Book, error) {
 		&i.CreatedAt,
 		&i.Description,
 		&i.LostAt,
+		&i.Ord,
 	)
 	return i, err
 }
 
-const listBooks = `-- name: ListBooks :many
-SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at
+const listBookIDsForUpdate = `-- name: ListBookIDsForUpdate :many
+SELECT id
 FROM books
-ORDER BY lower(title), title, id
+ORDER BY ord, id
+FOR UPDATE
+`
+
+func (q *Queries) ListBookIDsForUpdate(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listBookIDsForUpdate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBooks = `-- name: ListBooks :many
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
+FROM books
+ORDER BY ord, id
 `
 
 func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
@@ -120,6 +149,7 @@ func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
 			&i.CreatedAt,
 			&i.Description,
 			&i.LostAt,
+			&i.Ord,
 		); err != nil {
 			return nil, err
 		}
@@ -140,7 +170,7 @@ SET isbn = $1,
     page_count = $5,
     description = $6
 WHERE id = $7
-RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
 `
 
 type UpdateBookParams struct {
@@ -177,6 +207,7 @@ func (q *Queries) UpdateBook(ctx context.Context, arg UpdateBookParams) (Book, e
 		&i.CreatedAt,
 		&i.Description,
 		&i.LostAt,
+		&i.Ord,
 	)
 	return i, err
 }
@@ -185,7 +216,7 @@ const updateBookCover = `-- name: UpdateBookCover :one
 UPDATE books
 SET cover_url = $1
 WHERE id = $2
-RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
 `
 
 type UpdateBookCoverParams struct {
@@ -209,6 +240,25 @@ func (q *Queries) UpdateBookCover(ctx context.Context, arg UpdateBookCoverParams
 		&i.CreatedAt,
 		&i.Description,
 		&i.LostAt,
+		&i.Ord,
 	)
 	return i, err
+}
+
+const updateBookOrder = `-- name: UpdateBookOrder :execrows
+UPDATE books AS book
+SET ord = ordered.ord
+FROM (
+    SELECT id, ord::integer
+    FROM unnest($1::uuid[]) WITH ORDINALITY AS positions(id, ord)
+) AS ordered
+WHERE book.id = ordered.id
+`
+
+func (q *Queries) UpdateBookOrder(ctx context.Context, ids []uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, updateBookOrder, ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

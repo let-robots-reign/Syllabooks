@@ -20,8 +20,9 @@ export function AdminBooks() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [showAll, setShowAll] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [draggedID, setDraggedID] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   useEffect(() => {
     let current = true;
@@ -73,12 +74,35 @@ export function AdminBooks() {
     });
   }, [books, filter, query]);
 
-  const visible = showAll ? filtered : filtered.slice(0, 8);
-
   const chooseFilter = (value: Filter) => {
     setFilter(value);
-    setShowAll(false);
     setPendingDelete(null);
+  };
+
+  const dropBook = async (targetID: string) => {
+    if (!books || !draggedID || draggedID === targetID || savingOrder) return;
+    const previous = books;
+    const next = reorderFilteredBooks(
+      books,
+      filtered.map((book) => book.id),
+      draggedID,
+      targetID,
+    );
+    setBooks(next);
+    setDraggedID(null);
+    setSavingOrder(true);
+    setError(null);
+    try {
+      await api("/admin/books/order", {
+        method: "PUT",
+        body: { ids: next.map((book) => book.id) },
+      });
+    } catch (err) {
+      setBooks(previous);
+      setError((err as ApiError).message);
+    } finally {
+      setSavingOrder(false);
+    }
   };
 
   const remove = async (book: Book) => {
@@ -111,7 +135,6 @@ export function AdminBooks() {
               placeholder="Поиск по названию"
               onChange={(event) => {
                 setQuery(event.target.value);
-                setShowAll(false);
               }}
             />
           </label>
@@ -177,12 +200,45 @@ export function AdminBooks() {
               <span>Стр.</span>
               <span>Действия</span>
             </div>
-            {visible.map((book) => (
+            {filtered.map((book) => (
               <div
-                className={clsx(styles.row, !book.cover_url && styles.noCover)}
+                className={clsx(
+                  styles.row,
+                  !book.cover_url && styles.noCover,
+                  draggedID === book.id && styles.dragging,
+                )}
                 key={book.id}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  void dropBook(book.id);
+                }}
               >
-                <span className={clsx(styles.spine, styles[book.level])} />
+                <div className={styles.visualCell}>
+                  <button
+                    type="button"
+                    className={styles.dragHandle}
+                    draggable={!savingOrder}
+                    aria-label={`Изменить порядок книги «${book.title}»`}
+                    title="Перетащить"
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", book.id);
+                      setDraggedID(book.id);
+                    }}
+                    onDragEnd={() => setDraggedID(null)}
+                  >
+                    ⋮⋮
+                  </button>
+                  <span className={clsx(styles.spine, styles[book.level])} />
+                  {book.cover_url && (
+                    <img
+                      className={styles.cover}
+                      src={book.cover_url}
+                      alt=""
+                    />
+                  )}
+                </div>
                 <div className={styles.bookCell}>
                   <span className={styles.bookTitle}>{book.title}</span>
                   <span className={clsx(!book.cover_url && styles.missing)}>
@@ -224,14 +280,10 @@ export function AdminBooks() {
           </div>
           <footer className={styles.footer}>
             <span>
-              Показаны {visible.length} из {filtered.length} · сортировка по
-              названию
+              {filtered.length} из {books.length} · порядок можно менять
+              перетаскиванием
             </span>
-            {!showAll && filtered.length > 8 && (
-              <button onClick={() => setShowAll(true)}>
-                Показать все {filtered.length} →
-              </button>
-            )}
+            {savingOrder && <span>Сохраняем порядок…</span>}
           </footer>
         </>
       )}
@@ -269,3 +321,24 @@ function FilterButton({
 const formatISBN = (isbn: string) => {
   return `${isbn.slice(0, 3)}-${isbn.slice(3, 4)}-${isbn.slice(4, 7)}-${isbn.slice(7, 12)}-${isbn.slice(12)}`;
 };
+
+function reorderFilteredBooks(
+  books: Book[],
+  filteredIDs: string[],
+  draggedID: string,
+  targetID: string,
+) {
+  const reorderedIDs = [...filteredIDs];
+  const from = reorderedIDs.indexOf(draggedID);
+  const to = reorderedIDs.indexOf(targetID);
+  if (from < 0 || to < 0) return books;
+  reorderedIDs.splice(from, 1);
+  reorderedIDs.splice(to, 0, draggedID);
+
+  const byID = new Map(books.map((book) => [book.id, book]));
+  const visible = new Set(filteredIDs);
+  let index = 0;
+  return books.map((book) =>
+    visible.has(book.id) ? byID.get(reorderedIDs[index++])! : book,
+  );
+}

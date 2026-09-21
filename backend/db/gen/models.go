@@ -186,6 +186,7 @@ type Book struct {
 	CreatedAt   time.Time
 	Description *string
 	LostAt      *time.Time
+	Ord         int32
 }
 
 type IssuedStudentCode struct {

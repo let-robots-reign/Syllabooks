@@ -34,6 +34,7 @@ SELECT b.id,
        b.page_count,
        b.description,
        b.cover_url,
+       b.ord,
        u.display_name AS borrower_name,
        l.due_at
 FROM books b
@@ -51,6 +52,7 @@ type GetCatalogBookRow struct {
 	PageCount    int32
 	Description  *string
 	CoverUrl     *string
+	Ord          int32
 	BorrowerName *string
 	DueAt        *time.Time
 }
@@ -67,6 +69,7 @@ func (q *Queries) GetCatalogBook(ctx context.Context, id uuid.UUID) (GetCatalogB
 		&i.PageCount,
 		&i.Description,
 		&i.CoverUrl,
+		&i.Ord,
 		&i.BorrowerName,
 		&i.DueAt,
 	)
@@ -82,13 +85,14 @@ SELECT b.id,
        b.page_count,
        b.description,
        b.cover_url,
+       b.ord,
        u.display_name AS borrower_name,
        l.due_at
 FROM books b
 LEFT JOIN loans l ON l.book_id = b.id AND l.returned_at IS NULL
 LEFT JOIN users u ON u.id = l.user_id
 WHERE NOT b.is_lost
-ORDER BY lower(b.title), b.title, b.id
+ORDER BY b.ord, b.id
 `
 
 type ListCatalogBooksRow struct {
@@ -100,6 +104,7 @@ type ListCatalogBooksRow struct {
 	PageCount    int32
 	Description  *string
 	CoverUrl     *string
+	Ord          int32
 	BorrowerName *string
 	DueAt        *time.Time
 }
@@ -122,6 +127,7 @@ func (q *Queries) ListCatalogBooks(ctx context.Context) ([]ListCatalogBooksRow, 
 			&i.PageCount,
 			&i.Description,
 			&i.CoverUrl,
+			&i.Ord,
 			&i.BorrowerName,
 			&i.DueAt,
 		); err != nil {

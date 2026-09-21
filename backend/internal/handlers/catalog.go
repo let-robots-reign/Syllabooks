@@ -26,6 +26,7 @@ type catalogBookResponse struct {
 	PageCount   int32                `json:"page_count"`
 	Description *string              `json:"description"`
 	CoverURL    *string              `json:"cover_url"`
+	Ord         int32                `json:"ord"`
 	CurrentLoan *currentLoanResponse `json:"current_loan"`
 }
 
@@ -38,6 +39,7 @@ type catalogBookData struct {
 	PageCount    int32
 	Description  *string
 	CoverURL     *string
+	Ord          int32
 	BorrowerName *string
 	DueAt        *time.Time
 }
@@ -47,6 +49,7 @@ func presentCatalogBook(book catalogBookData) catalogBookResponse {
 		ID: book.ID, ISBN: book.ISBN, Title: book.Title, Author: book.Author,
 		Level: book.Level, PageCount: book.PageCount,
 		Description: book.Description, CoverURL: book.CoverURL,
+		Ord: book.Ord,
 	}
 	if book.BorrowerName != nil && book.DueAt != nil {
 		response.CurrentLoan = &currentLoanResponse{
@@ -85,6 +88,7 @@ func (s *Server) listCatalog(w http.ResponseWriter, r *http.Request, user gen.Us
 			ID: book.ID, ISBN: book.Isbn, Title: book.Title, Author: book.Author,
 			Level: book.Level, PageCount: book.PageCount,
 			Description: book.Description, CoverURL: book.CoverUrl,
+			Ord:          book.Ord,
 			BorrowerName: book.BorrowerName, DueAt: book.DueAt,
 		}))
 	}
@@ -113,6 +117,7 @@ func (s *Server) getCatalogBook(w http.ResponseWriter, r *http.Request, _ gen.Us
 		ID: book.ID, ISBN: book.Isbn, Title: book.Title, Author: book.Author,
 		Level: book.Level, PageCount: book.PageCount,
 		Description: book.Description, CoverURL: book.CoverUrl,
+		Ord:          book.Ord,
 		BorrowerName: book.BorrowerName, DueAt: book.DueAt,
 	}))
 }

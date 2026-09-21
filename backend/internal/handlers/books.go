@@ -25,6 +25,7 @@ type bookResponse struct {
 	PageCount   int32         `json:"page_count"`
 	Description *string       `json:"description"`
 	CoverURL    *string       `json:"cover_url"`
+	Ord         int32         `json:"ord"`
 }
 
 type bookInput struct {
@@ -55,7 +56,68 @@ func presentBook(book gen.Book) bookResponse {
 		PageCount:   book.PageCount,
 		Description: book.Description,
 		CoverURL:    book.CoverUrl,
+		Ord:         book.Ord,
 	}
+}
+
+func (s *Server) reorderBooks(w http.ResponseWriter, r *http.Request, _ gen.User) {
+	var input struct {
+		IDs []uuid.UUID `json:"ids"`
+	}
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+
+	tx, err := s.Pool.Begin(r.Context())
+	if err != nil {
+		serverError(w, r, fmt.Errorf("begin reorder books: %w", err))
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	queries := gen.New(tx)
+	currentIDs, err := queries.ListBookIDsForUpdate(r.Context())
+	if err != nil {
+		serverError(w, r, fmt.Errorf("lock books for reorder: %w", err))
+		return
+	}
+	if !sameBookIDs(currentIDs, input.IDs) {
+		writeError(w, http.StatusBadRequest, "Список книг изменился. Обнови страницу и попробуй снова.")
+		return
+	}
+	updated, err := queries.UpdateBookOrder(r.Context(), input.IDs)
+	if err != nil {
+		serverError(w, r, fmt.Errorf("reorder books: %w", err))
+		return
+	}
+	if updated != int64(len(input.IDs)) {
+		writeError(w, http.StatusBadRequest, "Не удалось сохранить порядок книг.")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		serverError(w, r, fmt.Errorf("commit reorder books: %w", err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func sameBookIDs(current, requested []uuid.UUID) bool {
+	if len(current) != len(requested) {
+		return false
+	}
+	seen := make(map[uuid.UUID]struct{}, len(requested))
+	for _, id := range requested {
+		if _, duplicate := seen[id]; duplicate {
+			return false
+		}
+		seen[id] = struct{}{}
+	}
+	for _, id := range current {
+		if _, ok := seen[id]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Server) listBooks(w http.ResponseWriter, r *http.Request, _ gen.User) {

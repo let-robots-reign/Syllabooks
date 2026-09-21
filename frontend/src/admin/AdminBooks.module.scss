@@ -91,7 +91,7 @@
 .row {
   display: grid;
   grid-template-columns:
-    26px minmax(250px, 2fr) minmax(130px, 1fr)
+    82px minmax(250px, 2fr) minmax(130px, 1fr)
     150px 70px minmax(190px, 1fr);
   column-gap: 16px;
   align-items: center;
@@ -117,6 +117,40 @@
 .spine {
   width: 5px;
   height: 26px;
+  flex: 0 0 auto;
+}
+
+.visualCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+}
+
+.dragHandle {
+  width: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 14px;
+  letter-spacing: -3px;
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.cover {
+  width: 28px;
+  height: 40px;
+  border: 1px solid var(--color-border-strong);
+  object-fit: cover;
+}
+
+.dragging {
+  opacity: 0.45;
 }
 
 .green,
@@ -202,13 +236,6 @@
   color: var(--color-muted);
   font-size: 12px;
 
-  button {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--color-ink-soft);
-    cursor: pointer;
-  }
 }
 
 .error {

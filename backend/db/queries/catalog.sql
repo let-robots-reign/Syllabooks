@@ -7,13 +7,14 @@ SELECT b.id,
        b.page_count,
        b.description,
        b.cover_url,
+       b.ord,
        u.display_name AS borrower_name,
        l.due_at
 FROM books b
 LEFT JOIN loans l ON l.book_id = b.id AND l.returned_at IS NULL
 LEFT JOIN users u ON u.id = l.user_id
 WHERE NOT b.is_lost
-ORDER BY lower(b.title), b.title, b.id;
+ORDER BY b.ord, b.id;
 
 -- name: GetCatalogBook :one
 SELECT b.id,
@@ -24,6 +25,7 @@ SELECT b.id,
        b.page_count,
        b.description,
        b.cover_url,
+       b.ord,
        u.display_name AS borrower_name,
        l.due_at
 FROM books b

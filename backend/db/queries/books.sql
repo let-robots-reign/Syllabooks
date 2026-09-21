@@ -6,7 +6,22 @@ RETURNING *;
 -- name: ListBooks :many
 SELECT *
 FROM books
-ORDER BY lower(title), title, id;
+ORDER BY ord, id;
+
+-- name: ListBookIDsForUpdate :many
+SELECT id
+FROM books
+ORDER BY ord, id
+FOR UPDATE;
+
+-- name: UpdateBookOrder :execrows
+UPDATE books AS book
+SET ord = ordered.ord
+FROM (
+    SELECT id, ord::integer
+    FROM unnest(@ids::uuid[]) WITH ORDINALITY AS positions(id, ord)
+) AS ordered
+WHERE book.id = ordered.id;
 
 -- name: GetBook :one
 SELECT *

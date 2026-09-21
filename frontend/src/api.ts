@@ -19,6 +19,7 @@ export type Book = {
   page_count: number;
   description: string | null;
   cover_url: string | null;
+  ord: number;
 };
 
 export type CatalogBook = Book & {

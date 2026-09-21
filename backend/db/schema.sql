@@ -32,11 +32,21 @@ CREATE TABLE public.books (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     description text,
     lost_at timestamp with time zone,
+    ord integer NOT NULL,
     CONSTRAINT books_description_length CHECK ((char_length(description) <= 240)),
     CONSTRAINT books_isbn_check CHECK ((isbn ~ '^[0-9]{13}$'::text)),
     CONSTRAINT books_lost_state CHECK ((is_lost = (lost_at IS NOT NULL))),
     CONSTRAINT books_page_count_check CHECK ((page_count > 0))
 );
+
+CREATE SEQUENCE public.books_ord_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.books_ord_seq OWNED BY public.books.ord;
 
 CREATE TABLE public.issued_student_codes (
     code text NOT NULL,
@@ -89,6 +99,8 @@ CREATE TABLE public.users (
     CONSTRAINT users_oauth_provider_check CHECK ((oauth_provider = ANY (ARRAY['yandex'::text, 'vk'::text]))),
     CONSTRAINT users_password_only_with_code CHECK (((password_hash IS NULL) OR (code IS NOT NULL)))
 );
+
+ALTER TABLE ONLY public.books ALTER COLUMN ord SET DEFAULT nextval('public.books_ord_seq'::regclass);
 
 ALTER TABLE ONLY public.books
     ADD CONSTRAINT books_isbn_key UNIQUE (isbn);
