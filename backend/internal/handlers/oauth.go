@@ -35,9 +35,12 @@ type Provider struct {
 	// point it at a fake provider.
 	ProfileURL string
 
-	// echoParams are callback query parameters the provider wants repeated in
-	// the token request.
-	echoParams []string
+	// pkceMethod lets providers override the RFC spelling when their endpoint
+	// expects a provider-specific value. The default is S256.
+	pkceMethod string
+	// exchangeCode is set for providers whose token endpoint does not follow
+	// the conventional OAuth form encoding used by x/oauth2.
+	exchangeCode func(ctx context.Context, p *Provider, callback url.Values, verifier string) (string, error)
 	// fetchProfile reads the user's profile with an access token.
 	fetchProfile func(ctx context.Context, p *Provider, accessToken string) (oauthProfile, error)
 }
@@ -86,7 +89,10 @@ func (s *Server) oauthStart(p *Provider) http.HandlerFunc {
 		// Both are base64url, so a dot can separate them.
 		state, verifier := newToken(), oauth2.GenerateVerifier()
 		http.SetCookie(w, s.flowCookie(p, state+"."+verifier, 10*60))
-		http.Redirect(w, r, p.OAuth.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier)), http.StatusFound)
+		http.Redirect(w, r, p.OAuth.AuthCodeURL(state,
+			oauth2.SetAuthURLParam("code_challenge", oauth2.S256ChallengeFromVerifier(verifier)),
+			oauth2.SetAuthURLParam("code_challenge_method", cmp.Or(p.pkceMethod, "S256")),
+		), http.StatusFound)
 	}
 }
 
@@ -145,15 +151,22 @@ func (s *Server) oauthUser(ctx context.Context, p *Provider, callback url.Values
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	opts := []oauth2.AuthCodeOption{oauth2.VerifierOption(verifier)}
-	for _, name := range p.echoParams {
-		opts = append(opts, oauth2.SetAuthURLParam(name, callback.Get(name)))
+	var accessToken string
+	if p.exchangeCode != nil {
+		var err error
+		accessToken, err = p.exchangeCode(ctx, p, callback, verifier)
+		if err != nil {
+			return gen.User{}, fmt.Errorf("exchange code: %w", err)
+		}
+	} else {
+		opts := []oauth2.AuthCodeOption{oauth2.VerifierOption(verifier)}
+		token, err := p.OAuth.Exchange(ctx, callback.Get("code"), opts...)
+		if err != nil {
+			return gen.User{}, fmt.Errorf("exchange code: %w", err)
+		}
+		accessToken = token.AccessToken
 	}
-	token, err := p.OAuth.Exchange(ctx, callback.Get("code"), opts...)
-	if err != nil {
-		return gen.User{}, fmt.Errorf("exchange code: %w", err)
-	}
-	profile, err := p.fetchProfile(ctx, p, token.AccessToken)
+	profile, err := p.fetchProfile(ctx, p, accessToken)
 	if err != nil {
 		return gen.User{}, fmt.Errorf("fetch profile: %w", err)
 	}

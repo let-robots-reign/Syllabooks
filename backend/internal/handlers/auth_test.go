@@ -242,7 +242,11 @@ func fakeProviders(t *testing.T) (yandex, vk *Provider) {
 	// challenge, so the token endpoint can check the verifier statelessly.
 	mux.HandleFunc("GET /{provider}/authorize", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
-		if q.Get("client_id") != "client" || q.Get("code_challenge_method") != "S256" || q.Get("code_challenge") == "" {
+		challengeMethod := "S256"
+		if r.PathValue("provider") == "vk" {
+			challengeMethod = "s256"
+		}
+		if q.Get("client_id") != "client" || q.Get("code_challenge_method") != challengeMethod || q.Get("code_challenge") == "" {
 			http.Error(w, "bad authorization request", http.StatusBadRequest)
 			return
 		}

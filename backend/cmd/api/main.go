@@ -112,6 +112,9 @@ func serve() error {
 		if publicURL == "" {
 			return errors.New("VK_CLIENT_ID is set, so PUBLIC_URL must be too")
 		}
+		if _, err := strconv.ParseUint(clientID, 10, 64); err != nil {
+			return errors.New("VK_CLIENT_ID must be the numeric App ID from VK ID, not a protected or service key")
+		}
 		vk = handlers.NewVK(clientID, publicURL+"/api/auth/callback/vk")
 	} else {
 		log.Print("VK_CLIENT_ID is not set: VK login is disabled")

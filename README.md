@@ -35,7 +35,7 @@ The backend reads only its environment:
 | `LOAN_DAYS`    | `21`    | Positive integer; borrowing period used to calculate the due date. |
 | `SHELF_CODE`   | —       | Required outside Compose. Exact text encoded in the QR beside the shelf; Compose defaults to `SYLLABOOKS-LOCAL-SHELF` for development. |
 | `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET` | — | Yandex OAuth app. Unset disables Yandex login. Redirect URI to register: `$PUBLIC_URL/api/auth/callback/yandex`. |
-| `VK_CLIENT_ID` | — | VK ID app. Unset disables VK login. No secret: the code exchange uses PKCE. Trusted redirect URL: `$PUBLIC_URL/api/auth/callback/vk`. |
+| `VK_CLIENT_ID` | — | Numeric App ID from VK ID (not a protected or service key). Unset disables VK login. No secret: the code exchange uses PKCE. Trusted redirect URL: `$PUBLIC_URL/api/auth/callback/vk`. |
 
 ### Accounts for local testing
 
