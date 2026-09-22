@@ -90,7 +90,7 @@ export function Login({ onSignedIn, initialError }: Props) {
     <div className={styles.intro}>
       <Wordmark size={44} />
       <p className={styles.pitch}>
-        Шкаф у окна в 403л, книги на английском, одна твоя на 21 день.
+        Шкафчик у окна в 403л, книги на английском, бери любую на 21 день.
       </p>
     </div>
   );
@@ -234,7 +234,7 @@ export function Login({ onSignedIn, initialError }: Props) {
             <p className={styles.lead}>
               {hasPassword
                 ? "Введи пароль, который придумал при первом входе."
-                : "Первый вход. Пароль нужен, чтобы книги остались за тобой, даже если сменишь телефон."}
+                : "Первый вход. Пароль нужен, чтобы книги остались за тобой, даже если зайдешь с другого устройства."}
             </p>
             <TextField
               className={styles.field}
@@ -260,7 +260,7 @@ export function Login({ onSignedIn, initialError }: Props) {
               hint={
                 hasPassword
                   ? undefined
-                  : "От 6 символов. Можно буквы, цифры и точки — без заглавных требований."
+                  : "От 6 символов. Можно буквы, цифры и точки."
               }
               error={error}
             />
@@ -299,7 +299,7 @@ export function Login({ onSignedIn, initialError }: Props) {
         <div className={styles.body}>
           <h1 className={styles.title}>Такого кода нет в списке</h1>
           <p className={styles.lead}>
-            Проверь, так ли он написан, как на листке. Или спроси код у учителя.
+            Проверь, правильно ли он написан. Или переспроси код у учителя.
           </p>
           <p className={styles.missing}>
             <span className={styles.missingCode}>{shownCode}</span>

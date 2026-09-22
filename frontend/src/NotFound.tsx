@@ -6,9 +6,7 @@ export function NotFound() {
     <>
       <BackBar />
       <h1 className={styles.title}>Такой страницы нет</h1>
-      <p className={styles.lead}>
-        Возможно, ссылка устарела. Все книги — в каталоге.
-      </p>
+      <p className={styles.lead}>Возможно, ссылка устарела.</p>
     </>
   );
 }

@@ -198,7 +198,7 @@ export function Home({ me }: { me: Me }) {
         ) : visibleBooks.length === 0 ? (
           <div className={styles.state}>
             <h2>На выбранных уровнях книг пока нет</h2>
-            <p>Выбери другой уровень и посмотри, что есть на полке.</p>
+            <p>Выбери другой уровень и посмотри, что у нас есть.</p>
             <button type="button" onClick={showAllLevels}>
               Показать все уровни
             </button>

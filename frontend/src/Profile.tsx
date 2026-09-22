@@ -146,7 +146,7 @@ function CurrentBook({ loan }: { loan: LoanDetail | null }) {
       ) : (
         <div className={styles.emptyCurrent}>
           <h3>Сейчас книги нет</h3>
-          <p>Посмотри каталог и выбери следующую книгу с полки.</p>
+          <p>Посмотри каталог и выбери следующую книгу из шкафчика.</p>
           <ButtonLink href="/" variant="secondary" compact>
             Выбрать книгу
           </ButtonLink>

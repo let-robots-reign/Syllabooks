@@ -1,0 +1,112 @@
+.art {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+// Paper shapes with an ink edge.
+.sand,
+.sandDeep,
+.label,
+.phone,
+.green,
+.yellow,
+.red {
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+}
+
+.sand {
+  fill: var(--color-sand);
+}
+
+.sandDeep {
+  fill: var(--color-sand-deep);
+}
+
+.label {
+  fill: var(--color-field);
+}
+
+.phone {
+  fill: var(--color-paper);
+}
+
+.green {
+  fill: var(--level-green);
+}
+
+.yellow {
+  fill: var(--level-yellow);
+}
+
+.red {
+  fill: var(--level-red);
+}
+
+.rule {
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 0.75;
+}
+
+.plank {
+  fill: var(--color-sand-deep);
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+}
+
+.bracket {
+  fill: var(--color-ink);
+}
+
+.motion {
+  fill: none;
+  stroke: var(--color-brick);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.ink {
+  fill: var(--color-ink);
+}
+
+.muted {
+  fill: var(--color-muted);
+}
+
+.spine {
+  fill: var(--color-spine);
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+}
+
+.viewfinder,
+.scanLine {
+  fill: none;
+  stroke: var(--color-brick);
+  stroke-width: 2;
+}
+
+.scanLine {
+  stroke-width: 1.25;
+}
+
+.number {
+  fill: var(--color-ink);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.check {
+  fill: var(--level-green);
+  stroke: var(--color-paper);
+  stroke-width: 2;
+}
+
+.tick {
+  fill: none;
+  stroke: var(--color-paper);
+  stroke-width: 2;
+}

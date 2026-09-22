@@ -364,8 +364,8 @@ function UnreadableCode({ kind }: { kind: "shelf" | "book" }) {
       </strong>
       <p>
         {kind === "shelf"
-          ? "Добавь света и попробуй ещё раз — или введи код под QR вручную."
-          : "Добавь света, протри камеру и попробуй ещё раз — или введи ISBN вручную."}
+          ? "Попробуй ещё раз — или введи код под QR вручную."
+          : "Попробуй ещё раз — или введи ISBN вручную."}
       </p>
     </div>
   );
@@ -430,8 +430,10 @@ function ShelfCameraScreen({
       <div className={styles.cameraTop}>
         <ReturnHeader disabled={busy} />
         <StepProgress step={1} />
-        <h1>Код рядом с полкой</h1>
-        <p>Он приклеен на дверце шкафа у окна. Сначала полка, потом книга.</p>
+        <h1>Код на шкафчике</h1>
+        <p>
+          Он приклеен на шкафчике сбоку. Сначала отсканируй его, потом книгу.
+        </p>
       </div>
       {unreadable ? (
         <UnreadableCode kind="shelf" />
@@ -484,9 +486,9 @@ function ManualShelfScreen({
           if (value.trim()) onSubmit(value);
         }}
       >
-        <h1>Введи код полки</h1>
-        <p>Он напечатан под QR-кодом на дверце шкафа.</p>
-        <label htmlFor="shelf-code">Код полки</label>
+        <h1>Введи код вручную</h1>
+        <p>Он напечатан под QR-кодом шкафчика.</p>
+        <label htmlFor="shelf-code">Код шкафчика</label>
         <input
           id="shelf-code"
           value={value}
@@ -545,7 +547,7 @@ function BookCameraScreen({
         <ReturnHeader />
         <StepProgress step={2} />
         <h1>Теперь штрих-код книги</h1>
-        <p>{loan.book.title} — задняя обложка, внизу справа.</p>
+        <p>{loan.book.title} — задняя обложка.</p>
       </div>
       {unreadable ? (
         <UnreadableCode kind="book" />
@@ -682,7 +684,7 @@ function ConfirmScreen({
         <h1>Код не сканируется</h1>
         <p className={styles.confirmLead}>
           Ничего страшного. Поставь книгу на полку и подтверди вручную — учитель
-          сверит на следующем уроке.
+          сверит вручную.
         </p>
         <LoanCard loan={loan} />
         <label className={styles.confirmCheck}>
@@ -728,7 +730,7 @@ const returnReasons: Array<{
   {
     value: "finished",
     label: "Дочитал до конца",
-    note: "пойдёт в счёт класса",
+    note: "пойдёт в счёт книжного клуба",
   },
   { value: "too_hard", label: "Слишком сложно" },
   { value: "boring", label: "Скучно" },
@@ -761,8 +763,7 @@ function ReasonScreen({
         <div className={styles.successEyebrow}>Книга вернулась на полку</div>
         <h1>Как прошло с {loan.book.title}?</h1>
         <p className={styles.reasonLead}>
-          Один тап — и всё. Это видит только учитель, чтобы понимать, что
-          ставить на полку дальше.
+          Это видит только учитель, чтобы понимать, что ставить на полку дальше.
         </p>
         <div className={styles.reasonBook}>
           <div className={styles.reasonCover}>

@@ -26,10 +26,52 @@
   color: var(--color-ink-soft);
 }
 
-.levels {
+.section {
   margin-top: 22px;
   padding-top: 14px;
   border-top: 1px solid var(--color-ink);
+
+  & + & {
+    margin-top: var(--space-8);
+  }
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.stepTitle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.stepNumber {
+  flex: none;
+  font-size: 13px;
+  color: var(--color-brick);
+}
+
+.stepText {
+  margin-top: 3px;
+  font-size: var(--text-hint);
+  line-height: 1.45;
+  color: var(--color-ink-soft);
 }
 
 .levelList {
@@ -75,7 +117,7 @@
   color: var(--color-ink-soft);
 }
 
-.levelNote {
+.note {
   margin-top: var(--space-3);
   font-size: 12px;
   line-height: 1.45;
@@ -138,7 +180,7 @@
     padding-top: var(--space-3);
   }
 
-  .levels {
+  .section:first-of-type {
     margin-top: var(--space-4);
   }
 }

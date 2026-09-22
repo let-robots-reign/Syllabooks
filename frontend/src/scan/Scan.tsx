@@ -301,8 +301,8 @@ function CameraScreen({
 
       <footer className={styles.cameraFooter}>
         <p className={styles.manualHint}>
-          Не сканируется или камера мешает? ISBN напечатан цифрами прямо под
-          штрих-кодом — его можно ввести руками.
+          Не сканируется или камера плохо работает? ISBN напечатан цифрами прямо
+          под штрих-кодом — его можно ввести руками.
         </p>
         <Button variant="secondary" onClick={onManual}>
           Ввести ISBN вручную
@@ -472,10 +472,7 @@ function UnreadableBarcodeScreen({
         <div className={styles.eyebrow}>Штрих-код не распознан</div>
         <div className={styles.errorRule}>
           <h1>Не получилось прочитать полоски</h1>
-          <p>
-            Добавь света, протри камеру и попробуй ещё раз — или введи 13 цифр
-            ISBN под штрих-кодом.
-          </p>
+          <p>Попробуй ещё раз — или введи 13 цифр ISBN под штрих-кодом.</p>
         </div>
       </div>
       <footer className={styles.resultActions}>

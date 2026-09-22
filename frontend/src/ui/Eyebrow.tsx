@@ -9,8 +9,7 @@ type Props = {
   children: ReactNode;
 };
 
-// Eyebrow is the small uppercase label over a section: "Общий счёт класса",
-// "Формуляр".
+// Eyebrow is the small uppercase label over a section
 export function Eyebrow({ as: Tag = "p", className, children }: Props) {
   return <Tag className={clsx(styles.eyebrow, className)}>{children}</Tag>;
 }
