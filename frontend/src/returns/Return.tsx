@@ -7,14 +7,13 @@ import {
   type FormEvent,
 } from "react";
 import QrScanner from "qr-scanner";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   api,
   ApiError,
   type FinishCelebration,
   type LoanDetail,
   type ReturnEvidence,
-  type ReturnMethod,
   type ReturnReason,
   type ReturnReasonResponse,
 } from "../api.ts";
@@ -43,7 +42,6 @@ type Phase =
   | "session-expired"
   | "no-loan"
   | "shelf-camera"
-  | "shelf-manual"
   | "book-camera"
   | "book-manual"
   | "confirm"
@@ -112,10 +110,16 @@ const clearPendingReason = (): void => {
   }
 };
 
-const initialShelfPhase = (): Phase =>
-  window.matchMedia("(min-width: 481px)").matches
-    ? "shelf-manual"
-    : "shelf-camera";
+// The shelf QR holds a link like https://syllabooks.ru/return?shelf=CODE, so
+// the phone's own camera app opens this page. Scanned inside the app, only the
+// code is checked; any other QR sends an empty code and fails that check.
+const shelfCodeFrom = (scanned: string): string => {
+  try {
+    return new URL(scanned).searchParams.get("shelf") ?? "";
+  } catch {
+    return "";
+  }
+};
 
 const cameraErrorName = (error: unknown): string => {
   if (error && typeof error === "object" && "name" in error) {
@@ -329,11 +333,9 @@ function QrViewport({
 function CameraRecovery({
   failure,
   onManual,
-  manualLabel = "Ввести код вручную",
 }: {
   failure: CameraFailure;
-  onManual: () => void;
-  manualLabel?: string;
+  onManual?: () => void;
 }) {
   const steps = cameraRecoverySteps();
   const denied = failure === "denied";
@@ -341,7 +343,11 @@ function CameraRecovery({
   return (
     <div className={styles.cameraRecovery} role="alert">
       <strong>{denied ? "Камере не дали доступ" : "Камера недоступна"}</strong>
-      <p>Код можно ввести руками или вернуть книгу без сканирования.</p>
+      <p>
+        {onManual
+          ? "Код можно ввести руками или вернуть книгу без сканирования."
+          : "Можно вернуть книгу без сканирования."}
+      </p>
       {denied && (
         <ol>
           {steps.map((step) => (
@@ -349,9 +355,11 @@ function CameraRecovery({
           ))}
         </ol>
       )}
-      <Button variant="secondary" onClick={onManual}>
-        {manualLabel}
-      </Button>
+      {onManual && (
+        <Button variant="secondary" onClick={onManual}>
+          Ввести ISBN вручную
+        </Button>
+      )}
     </div>
   );
 }
@@ -360,11 +368,13 @@ function UnreadableCode({ kind }: { kind: "shelf" | "book" }) {
   return (
     <div className={styles.cameraRecovery} role="alert">
       <strong>
-        {kind === "shelf" ? "Код полки не распознан" : "Штрих-код не распознан"}
+        {kind === "shelf"
+          ? "Код шкафчика не распознан"
+          : "Штрих-код не распознан"}
       </strong>
       <p>
         {kind === "shelf"
-          ? "Попробуй ещё раз — или введи код под QR вручную."
+          ? "Попробуй ещё раз — или верни книгу без сканирования."
           : "Попробуй ещё раз — или введи ISBN вручную."}
       </p>
     </div>
@@ -372,14 +382,12 @@ function UnreadableCode({ kind }: { kind: "shelf" | "book" }) {
 }
 
 function ScanFooter({
-  manualLabel,
   onManual,
   onRetry,
   onSkip,
   disabled = false,
 }: {
-  manualLabel: string;
-  onManual: () => void;
+  onManual?: () => void;
   onRetry?: () => void;
   onSkip: () => void;
   disabled?: boolean;
@@ -387,9 +395,11 @@ function ScanFooter({
   return (
     <footer className={styles.scanFooter}>
       {onRetry && <Button onClick={onRetry}>Ещё раз камерой</Button>}
-      <Button variant="secondary" onClick={onManual} disabled={disabled}>
-        {manualLabel}
-      </Button>
+      {onManual && (
+        <Button variant="secondary" onClick={onManual} disabled={disabled}>
+          Ввести ISBN вручную
+        </Button>
+      )}
       <button
         type="button"
         className={styles.skipScan}
@@ -411,7 +421,6 @@ function ShelfCameraScreen({
   onFailure,
   onUnreadable,
   onRetryCamera,
-  onManual,
   onSkip,
 }: {
   error: string | null;
@@ -422,7 +431,6 @@ function ShelfCameraScreen({
   onFailure: (failure: CameraFailure) => void;
   onUnreadable: () => void;
   onRetryCamera: () => void;
-  onManual: () => void;
   onSkip: () => void;
 }) {
   return (
@@ -438,7 +446,7 @@ function ShelfCameraScreen({
       {unreadable ? (
         <UnreadableCode kind="shelf" />
       ) : failure ? (
-        <CameraRecovery failure={failure} onManual={onManual} />
+        <CameraRecovery failure={failure} />
       ) : (
         <QrViewport
           onDetected={onDetected}
@@ -450,70 +458,10 @@ function ShelfCameraScreen({
       {busy && <p className={styles.checking}>Проверяем код…</p>}
       {error && <p className={styles.cameraError}>{error}</p>}
       <ScanFooter
-        manualLabel="Ввести код вручную"
-        onManual={onManual}
         onRetry={unreadable ? onRetryCamera : undefined}
         onSkip={onSkip}
         disabled={busy}
       />
-    </div>
-  );
-}
-
-function ManualShelfScreen({
-  error,
-  busy,
-  onSubmit,
-  onCamera,
-  onSkip,
-}: {
-  error: string | null;
-  busy: boolean;
-  onSubmit: (value: string) => void;
-  onCamera: () => void;
-  onSkip: () => void;
-}) {
-  const [value, setValue] = useState("");
-
-  return (
-    <div className={styles.paperScreen}>
-      <ReturnHeader disabled={busy} />
-      <StepProgress step={1} />
-      <form
-        className={styles.manualForm}
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (value.trim()) onSubmit(value);
-        }}
-      >
-        <h1>Введи код вручную</h1>
-        <p>Он напечатан под QR-кодом шкафчика.</p>
-        <label htmlFor="shelf-code">Код шкафчика</label>
-        <input
-          id="shelf-code"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          autoCapitalize="characters"
-          autoComplete="off"
-          spellCheck={false}
-          disabled={busy}
-        />
-        {error && <div className={styles.formError}>{error}</div>}
-        <Button type="submit" disabled={!value.trim() || busy}>
-          {busy ? "Проверяем…" : "Дальше"}
-        </Button>
-        <Button variant="secondary" onClick={onCamera} disabled={busy}>
-          Сканировать камерой
-        </Button>
-        <button
-          type="button"
-          className={styles.skipScan}
-          onClick={onSkip}
-          disabled={busy}
-        >
-          Вернуть без сканирования
-        </button>
-      </form>
     </div>
   );
 }
@@ -552,11 +500,7 @@ function BookCameraScreen({
       {unreadable ? (
         <UnreadableCode kind="book" />
       ) : failure ? (
-        <CameraRecovery
-          failure={failure}
-          onManual={onManual}
-          manualLabel="Ввести ISBN вручную"
-        />
+        <CameraRecovery failure={failure} onManual={onManual} />
       ) : (
         <CameraViewport
           onDetected={onDetected}
@@ -566,7 +510,6 @@ function BookCameraScreen({
       )}
       {error && <p className={styles.cameraError}>{error}</p>}
       <ScanFooter
-        manualLabel="Ввести ISBN вручную"
         onManual={onManual}
         onRetry={unreadable ? onRetryCamera : undefined}
         onSkip={onSkip}
@@ -683,8 +626,8 @@ function ConfirmScreen({
       <section className={styles.confirmContent}>
         <h1>Код не сканируется</h1>
         <p className={styles.confirmLead}>
-          Ничего страшного. Поставь книгу на полку и подтверди вручную — учитель
-          сверит вручную.
+          Ничего страшного. Поставь книгу на полку и подтверди возврат. Учитель
+          увидит, что книга возвращена без сканирования, и проверит полку.
         </p>
         <LoanCard loan={loan} />
         <label className={styles.confirmCheck}>
@@ -924,6 +867,10 @@ function StateScreen({
 
 export function Return() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [linkedShelfCode] = useState(() =>
+    new URLSearchParams(location.search).get("shelf"),
+  );
   const [phase, setPhase] = useState<Phase>("loading");
   const [loan, setLoan] = useState<LoanDetail | null>(null);
   const [shelfEvidence, setShelfEvidence] = useState<ReturnEvidence | null>(
@@ -952,6 +899,51 @@ export function Return() {
   const [initialPendingReason] = useState(readPendingReason);
   const pendingReason = useRef(initialPendingReason);
   const [pendingReasonRetryable, setPendingReasonRetryable] = useState(true);
+
+  // Keep the shelf code out of the address bar, browser history and any link
+  // the student might copy from here.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has("shelf")) {
+      navigate("/return", { replace: true });
+    }
+  }, [location.search, navigate]);
+
+  const checkShelf = useCallback((loanId: string, code: string) => {
+    if (shelfLocked.current) return;
+    shelfLocked.current = true;
+    setShelfBusy(true);
+    setShelfError(null);
+    api<void>(`/loans/${loanId}/shelf-check`, {
+      method: "POST",
+      body: { code },
+    }).then(
+      () => {
+        setShelfEvidence({ method: "scan", value: code });
+        setShelfBusy(false);
+        shelfLocked.current = false;
+        setPhase(
+          window.matchMedia("(min-width: 481px)").matches
+            ? "book-manual"
+            : "book-camera",
+        );
+      },
+      (error: unknown) => {
+        const apiError =
+          error instanceof ApiError
+            ? error
+            : new ApiError(0, "Не получилось проверить код шкафчика.");
+        setShelfBusy(false);
+        shelfLocked.current = false;
+        if (apiError.status === 401) {
+          rememberAuthReturnPath("/return");
+          setPhase("session-expired");
+        } else {
+          setShelfError(apiError.message);
+          setPhase("shelf-camera");
+        }
+      },
+    );
+  }, []);
 
   useEffect(() => {
     let current = true;
@@ -1001,7 +993,10 @@ export function Return() {
       (result) => {
         if (!current) return;
         setLoan(result);
-        setPhase(initialShelfPhase());
+        // Opened from the shelf QR by the phone's camera app: the scan has
+        // already happened, so go straight to checking it.
+        if (linkedShelfCode) checkShelf(result.id, linkedShelfCode);
+        else setPhase("shelf-camera");
       },
       (error: unknown) => {
         if (!current) return;
@@ -1022,46 +1017,7 @@ export function Return() {
     return () => {
       current = false;
     };
-  }, [loadAttempt, navigate]);
-
-  const checkShelf = useCallback(
-    (value: string, method: Exclude<ReturnMethod, "skipped">) => {
-      if (!loan || shelfLocked.current) return;
-      shelfLocked.current = true;
-      setShelfBusy(true);
-      setShelfError(null);
-      api<void>(`/loans/${loan.id}/shelf-check`, {
-        method: "POST",
-        body: { code: value },
-      }).then(
-        () => {
-          setShelfEvidence({ method, value });
-          setShelfBusy(false);
-          shelfLocked.current = false;
-          setPhase(
-            window.matchMedia("(min-width: 481px)").matches
-              ? "book-manual"
-              : "book-camera",
-          );
-        },
-        (error: unknown) => {
-          const apiError =
-            error instanceof ApiError
-              ? error
-              : new ApiError(0, "Не получилось проверить код полки.");
-          setShelfBusy(false);
-          shelfLocked.current = false;
-          if (apiError.status === 401) {
-            rememberAuthReturnPath("/return");
-            setPhase("session-expired");
-          } else {
-            setShelfError(apiError.message);
-          }
-        },
-      );
-    },
-    [loan],
-  );
+  }, [loadAttempt, navigate, linkedShelfCode, checkShelf]);
 
   const closeLoan = useCallback(
     (shelf: ReturnEvidence, book: ReturnEvidence) => {
@@ -1091,9 +1047,7 @@ export function Return() {
             setPhase(book.method === "manual" ? "book-manual" : "book-camera");
           } else if (apiError.code === "invalid_shelf_code") {
             setShelfError(apiError.message);
-            setPhase(
-              shelf.method === "manual" ? "shelf-manual" : "shelf-camera",
-            );
+            setPhase("shelf-camera");
           } else if (apiError.status === 401) {
             rememberAuthReturnPath("/return");
             setPhase("session-expired");
@@ -1157,8 +1111,10 @@ export function Return() {
   };
 
   const handleShelfDetected = useCallback(
-    (value: string) => checkShelf(value, "scan"),
-    [checkShelf],
+    (value: string) => {
+      if (loan) checkShelf(loan.id, shelfCodeFrom(value));
+    },
+    [checkShelf, loan],
   );
   const handleShelfUnreadable = useCallback(() => setShelfUnreadable(true), []);
   const retryShelfCamera = useCallback(() => setShelfUnreadable(false), []);
@@ -1235,31 +1191,8 @@ export function Return() {
         onFailure={setShelfFailure}
         onUnreadable={handleShelfUnreadable}
         onRetryCamera={retryShelfCamera}
-        onManual={() => {
-          setShelfError(null);
-          setShelfFailure(null);
-          setShelfUnreadable(false);
-          setPhase("shelf-manual");
-        }}
         onSkip={() =>
           openConfirmation(skippedEvidence(), skippedEvidence(), "shelf-camera")
-        }
-      />
-    );
-  }
-  if (phase === "shelf-manual") {
-    return (
-      <ManualShelfScreen
-        error={shelfError}
-        busy={shelfBusy}
-        onSubmit={(value) => checkShelf(value, "manual")}
-        onCamera={() => {
-          setShelfError(null);
-          setShelfUnreadable(false);
-          setPhase("shelf-camera");
-        }}
-        onSkip={() =>
-          openConfirmation(skippedEvidence(), skippedEvidence(), "shelf-manual")
         }
       />
     );

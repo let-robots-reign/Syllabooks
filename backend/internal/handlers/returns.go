@@ -91,7 +91,7 @@ func (s *Server) checkShelfCode(w http.ResponseWriter, r *http.Request, user gen
 		return
 	}
 	if !s.validShelfCode(input.Code) {
-		writeReturnError(w, http.StatusUnprocessableEntity, "invalid_shelf_code", "Это не код полки. Попробуй ещё раз.")
+		writeReturnError(w, http.StatusUnprocessableEntity, "invalid_shelf_code", "Это не код шкафчика. Попробуй ещё раз.")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -231,13 +231,15 @@ type evidenceError struct {
 	message string
 }
 
+// The shelf code is never typed: it is printed only inside the QR, so a
+// student who can't scan it returns without scanning and the loan is flagged.
 func (s *Server) validateShelfEvidence(input returnEvidenceInput) (bool, *evidenceError) {
 	switch input.Method {
-	case "scan", "manual":
+	case "scan":
 		if !s.validShelfCode(input.Value) {
-			return false, &evidenceError{http.StatusUnprocessableEntity, "invalid_shelf_code", "Это не код полки. Попробуй ещё раз."}
+			return false, &evidenceError{http.StatusUnprocessableEntity, "invalid_shelf_code", "Это не код шкафчика. Попробуй ещё раз."}
 		}
-		return input.Method == "scan", nil
+		return true, nil
 	case "skipped":
 		return false, nil
 	default:

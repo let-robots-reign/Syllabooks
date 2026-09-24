@@ -53,6 +53,12 @@ func TestCurrentLoanAndReturnValidation(t *testing.T) {
 	if status != http.StatusUnprocessableEntity || invalidReturnShelf["code"] != "invalid_shelf_code" {
 		t.Fatalf("invalid return shelf: status=%d body=%v", status, invalidReturnShelf)
 	}
+	status, manualShelf := bookRequest[map[string]any](t, env, http.MethodPost, loanPath+"/return", token, returnBody(
+		"manual", "SHELF-403", "scan", *book.Isbn,
+	))
+	if status != http.StatusBadRequest || manualShelf["code"] != "invalid_return_evidence" {
+		t.Fatalf("manual shelf: status=%d body=%v", status, manualShelf)
+	}
 
 	status, wrongBook := bookRequest[map[string]any](t, env, http.MethodPost, loanPath+"/return", token, returnBody(
 		"scan", "SHELF-403", "scan", randomTestISBN(),
@@ -95,8 +101,8 @@ func TestReturnAuditFlagsAndIdempotency(t *testing.T) {
 		{"both scanned", "scan", "scan", true, true},
 		{"both skipped", "skipped", "skipped", false, false},
 		{"shelf scanned book skipped", "scan", "skipped", true, false},
-		{"both manually entered", "manual", "manual", false, false},
-		{"shelf manual book scanned", "manual", "scan", false, true},
+		{"shelf scanned book manually entered", "scan", "manual", true, false},
+		{"shelf skipped book scanned", "skipped", "scan", false, true},
 	}
 
 	for _, tc := range tests {
