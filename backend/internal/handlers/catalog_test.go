@@ -13,7 +13,7 @@ func TestStudentCatalog(t *testing.T) {
 	env := newTestEnv(t, Server{})
 	viewerID, viewerCode := env.newCodeUser(t)
 	token := env.login(t, viewerCode, "читатель")
-	borrowerID, _ := env.newCodeUser(t)
+	borrowerID, borrowerCode := env.newCodeUser(t)
 	env.exec(t, "UPDATE users SET display_name = 'Аня' WHERE id = $1", borrowerID)
 
 	availableID := uuid.New()
@@ -109,6 +109,17 @@ func TestStudentCatalog(t *testing.T) {
 	}
 	if _, exposed := detail["notes"]; exposed {
 		t.Fatalf("book detail exposed private notes: %#v", detail)
+	}
+	if myLoan, present := detail["my_loan"]; !present || myLoan != nil {
+		t.Fatalf("book detail my_loan for a reader without a book = %#v", myLoan)
+	}
+
+	borrowerToken := env.login(t, borrowerCode, "заёмщик")
+	status, detail = bookRequest[map[string]any](t, env, http.MethodGet, "/api/books/"+availableID.String(), borrowerToken, nil)
+	myLoan, _ := detail["my_loan"].(map[string]any)
+	myBook, _ := myLoan["book"].(map[string]any)
+	if status != http.StatusOK || myBook["id"] != borrowedID.String() {
+		t.Fatalf("book detail my_loan for the borrower: status=%d body=%#v", status, detail)
 	}
 
 	for _, id := range []uuid.UUID{lostID, uuid.New()} {

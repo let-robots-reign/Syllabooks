@@ -30,6 +30,13 @@ type catalogBookResponse struct {
 	CurrentLoan *currentLoanResponse `json:"current_loan"`
 }
 
+// The book page also carries the reader's own loan, so it can hide the
+// scan action while they already have a book.
+type catalogBookDetailResponse struct {
+	catalogBookResponse
+	MyLoan *loanDetailResponse `json:"my_loan"`
+}
+
 type catalogBookData struct {
 	ID           uuid.UUID
 	ISBN         *string
@@ -99,12 +106,13 @@ func (s *Server) listCatalog(w http.ResponseWriter, r *http.Request, user gen.Us
 	})
 }
 
-func (s *Server) getCatalogBook(w http.ResponseWriter, r *http.Request, _ gen.User) {
+func (s *Server) getCatalogBook(w http.ResponseWriter, r *http.Request, user gen.User) {
 	id, ok := bookID(w, r)
 	if !ok {
 		return
 	}
-	book, err := gen.New(s.Pool).GetCatalogBook(r.Context(), id)
+	queries := gen.New(s.Pool)
+	book, err := queries.GetCatalogBook(r.Context(), id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		http.NotFound(w, r)
 		return
@@ -113,11 +121,23 @@ func (s *Server) getCatalogBook(w http.ResponseWriter, r *http.Request, _ gen.Us
 		serverError(w, r, fmt.Errorf("get catalogue book: %w", err))
 		return
 	}
-	writeJSON(w, http.StatusOK, presentCatalogBook(catalogBookData{
-		ID: book.ID, ISBN: book.Isbn, Title: book.Title, Author: book.Author,
-		Level: book.Level, PageCount: book.PageCount,
-		Description: book.Description, CoverURL: book.CoverUrl,
-		Ord:          book.Ord,
-		BorrowerName: book.BorrowerName, DueAt: book.DueAt,
-	}))
+	var myLoan *loanDetailResponse
+	current, err := queries.GetCurrentLoanWithBook(r.Context(), user.ID)
+	if err == nil {
+		presented := presentCurrentLoan(current)
+		myLoan = &presented
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		serverError(w, r, fmt.Errorf("get reader's current loan: %w", err))
+		return
+	}
+	writeJSON(w, http.StatusOK, catalogBookDetailResponse{
+		catalogBookResponse: presentCatalogBook(catalogBookData{
+			ID: book.ID, ISBN: book.Isbn, Title: book.Title, Author: book.Author,
+			Level: book.Level, PageCount: book.PageCount,
+			Description: book.Description, CoverURL: book.CoverUrl,
+			Ord:          book.Ord,
+			BorrowerName: book.BorrowerName, DueAt: book.DueAt,
+		}),
+		MyLoan: myLoan,
+	})
 }

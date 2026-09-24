@@ -29,6 +29,10 @@ export type CatalogBook = Book & {
   } | null;
 };
 
+export type CatalogBookDetail = CatalogBook & {
+  my_loan: LoanDetail | null;
+};
+
 export type CatalogResponse = {
   finished_count: number;
   books: CatalogBook[];

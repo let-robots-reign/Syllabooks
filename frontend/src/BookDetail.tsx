@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { useParams } from "react-router-dom";
-import { api, ApiError, type CatalogBook } from "./api.ts";
+import { api, ApiError, type CatalogBookDetail } from "./api.ts";
 import { bookLevel } from "./bookLevels.ts";
 import { BookCover, LevelBars } from "./catalog/BookVisuals.tsx";
 import { BottomAction } from "./catalog/BottomAction.tsx";
@@ -14,7 +14,7 @@ export function BookDetail() {
   const { id } = useParams();
   const [result, setResult] = useState<{
     id: string | undefined;
-    book?: CatalogBook;
+    book?: CatalogBookDetail;
     error?: string;
     notFound?: boolean;
   }>();
@@ -22,7 +22,7 @@ export function BookDetail() {
 
   useEffect(() => {
     let current = true;
-    api<CatalogBook>(`/books/${id}`).then(
+    api<CatalogBookDetail>(`/books/${id}`).then(
       (book) => {
         if (current) setResult({ id, book });
       },
@@ -83,7 +83,7 @@ function State({
   );
 }
 
-function Book({ book }: { book: CatalogBook }) {
+function Book({ book }: { book: CatalogBookDetail }) {
   const level = bookLevel(book.level);
   const due = book.current_loan
     ? formatDueDate(book.current_loan.due_at)
@@ -99,6 +99,12 @@ function Book({ book }: { book: CatalogBook }) {
   } else if (!book.isbn) {
     action = (
       <BottomAction note="У этой книги нет ISBN. Чтобы взять её, обратись к учителю." />
+    );
+  } else if (book.my_loan) {
+    action = (
+      <BottomAction
+        note={`Сначала верни «${book.my_loan.book.title}» — одновременно можно читать одну книгу`}
+      />
     );
   } else {
     action = (
