@@ -19,6 +19,15 @@ CREATE TYPE public.user_status AS ENUM (
     'banned'
 );
 
+CREATE TABLE public.book_requests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    title text NOT NULL,
+    purchased_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT book_requests_title_check CHECK (((btrim(title) <> ''::text) AND (char_length(title) <= 200)))
+);
+
 CREATE TABLE public.books (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     isbn text,
@@ -102,6 +111,9 @@ CREATE TABLE public.users (
 
 ALTER TABLE ONLY public.books ALTER COLUMN ord SET DEFAULT nextval('public.books_ord_seq'::regclass);
 
+ALTER TABLE ONLY public.book_requests
+    ADD CONSTRAINT book_requests_pkey PRIMARY KEY (id);
+
 ALTER TABLE ONLY public.books
     ADD CONSTRAINT books_isbn_key UNIQUE (isbn);
 
@@ -129,6 +141,9 @@ ALTER TABLE ONLY public.users
 CREATE UNIQUE INDEX loans_one_open_per_book ON public.loans USING btree (book_id) WHERE (returned_at IS NULL);
 
 CREATE UNIQUE INDEX loans_one_open_per_user ON public.loans USING btree (user_id) WHERE (returned_at IS NULL);
+
+ALTER TABLE ONLY public.book_requests
+    ADD CONSTRAINT book_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.loans
     ADD CONSTRAINT loans_book_id_fkey FOREIGN KEY (book_id) REFERENCES public.books(id);

@@ -1,0 +1,106 @@
+.prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5) 0 var(--space-2);
+  border-top: 1px solid var(--color-rule);
+
+  > p {
+    font-family: var(--font-serif);
+    font-size: var(--text-prose);
+    line-height: 1.5;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.thanks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding-top: var(--space-2);
+  text-align: center;
+
+  > p {
+    max-width: 300px;
+    font-family: var(--font-serif);
+    font-size: var(--text-title);
+    line-height: 1.45;
+    animation: appear 320ms ease-out 620ms both;
+  }
+
+  > button {
+    animation: appear 320ms ease-out 760ms both;
+  }
+}
+
+// The circle pops in with a slight overshoot, then the tick draws itself.
+.check {
+  width: 88px;
+  height: 88px;
+  overflow: visible;
+}
+
+.checkCircle {
+  fill: var(--level-green);
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 80ms both;
+}
+
+.checkMark {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: draw 360ms cubic-bezier(0.65, 0, 0.35, 1) 400ms forwards;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkCircle,
+  .thanks > p,
+  .thanks > button {
+    animation: none;
+  }
+
+  .checkMark {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

@@ -58,6 +58,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/loans/{id}/shelf-check", s.requireUser(s.checkShelfCode))
 	mux.HandleFunc("POST /api/loans/{id}/return", s.requireUser(s.returnBook))
 	mux.HandleFunc("POST /api/loans/{id}/return-reason", s.requireUser(s.setReturnReason))
+	mux.HandleFunc("POST /api/book-requests", s.requireUser(s.createBookRequest))
 
 	mux.HandleFunc("GET /api/admin/books", s.requireAdmin(s.listBooks))
 	mux.HandleFunc("POST /api/admin/books", s.requireAdmin(s.createBook))
@@ -76,6 +77,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/loans/{id}/lost", s.requireAdmin(s.markAdminLoanLost))
 	mux.HandleFunc("POST /api/admin/loans/{id}/review", s.requireAdmin(s.reviewAdminLoanScan))
 	mux.HandleFunc("GET /api/admin/lost", s.requireAdmin(s.listAdminLostBooks))
+	mux.HandleFunc("GET /api/admin/book-requests", s.requireAdmin(s.listAdminBookRequests))
+	mux.HandleFunc("PUT /api/admin/book-requests/{id}/purchased", s.requireAdmin(s.setAdminBookRequestPurchased))
+	mux.HandleFunc("DELETE /api/admin/book-requests/{id}", s.requireAdmin(s.deleteAdminBookRequest))
 	mux.HandleFunc("GET /api/admin/users", s.requireAdmin(s.listAdminUsers))
 	mux.HandleFunc("POST /api/admin/users", s.requireAdmin(s.createAdminUser))
 	mux.HandleFunc("PATCH /api/admin/users/{id}", s.requireAdmin(s.updateAdminUser))

@@ -189,6 +189,14 @@ type Book struct {
 	Ord         int32
 }
 
+type BookRequest struct {
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	Title       string
+	PurchasedAt *time.Time
+	CreatedAt   time.Time
+}
+
 type IssuedStudentCode struct {
 	Code     string
 	IssuedAt time.Time

@@ -1,8 +1,8 @@
-import { useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { useId, type ComponentProps, type ReactNode } from "react";
 import clsx from "clsx";
 import styles from "./TextField.module.scss";
 
-type Props = InputHTMLAttributes<HTMLInputElement> & {
+type Props = ComponentProps<"input"> & {
   label: string;
   // Keeps the label for screen readers only, where the screen's heading
   // already says what goes in the field.

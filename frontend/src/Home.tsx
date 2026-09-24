@@ -8,6 +8,7 @@ import {
 import type { BookLevel, CatalogBook, CatalogResponse, Me } from "./api.ts";
 import { api, ApiError } from "./api.ts";
 import { bookLevel, bookLevels } from "./bookLevels.ts";
+import { BookRequest } from "./catalog/BookRequest.tsx";
 import { BookCover, LevelBars } from "./catalog/BookVisuals.tsx";
 import { BottomAction } from "./catalog/BottomAction.tsx";
 import {
@@ -194,14 +195,17 @@ export function Home({ me }: { me: Me }) {
         ) : catalog === undefined ? (
           <p className={styles.loading}>Загрузка каталога…</p>
         ) : catalog.books.length === 0 ? (
-          <div className={clsx(styles.state, styles.emptyCatalogue)}>
-            <div className={styles.emptyShelf} aria-hidden="true" />
-            <h2>Полка пока пустая</h2>
-            <p>
-              Учитель добавляет книги по штрих-кодам. Зайди завтра — или напомни
-              ему на уроке.
-            </p>
-          </div>
+          <>
+            <div className={clsx(styles.state, styles.emptyCatalogue)}>
+              <div className={styles.emptyShelf} aria-hidden="true" />
+              <h2>Полка пока пустая</h2>
+              <p>
+                Учитель добавляет книги по штрих-кодам. Зайди завтра — или
+                напомни ему на уроке.
+              </p>
+            </div>
+            <BookRequest />
+          </>
         ) : visibleBooks.length === 0 ? (
           <div className={styles.state}>
             <h2>На выбранных уровнях книг пока нет</h2>
@@ -243,6 +247,7 @@ export function Home({ me }: { me: Me }) {
                 <BookCard book={book} key={book.id} />
               ))}
             </div>
+            <BookRequest />
           </>
         )}
       </section>

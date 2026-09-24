@@ -1,0 +1,80 @@
+.table {
+  min-width: 760px;
+  margin-top: 18px;
+  border-top: 1px solid var(--color-ink);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 26px minmax(280px, 2fr) 190px 110px minmax(150px, 1fr);
+  column-gap: 16px;
+  align-items: center;
+  min-height: 52px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.title {
+  font-family: var(--font-brand);
+  font-size: var(--text-book);
+  overflow-wrap: anywhere;
+}
+
+// Bought requests stay listed, quieter, with the tick filled in.
+.purchased > :not(.tick) {
+  color: var(--color-muted);
+}
+
+.purchased .title {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-border-strong);
+}
+
+.tick {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+  transition:
+    background-color 160ms,
+    border-color 160ms,
+    color 160ms;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: var(--level-green);
+    color: var(--level-green);
+  }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}
+
+.ticked,
+.ticked:hover:not(:disabled) {
+  border-color: var(--level-green);
+  background: var(--level-green);
+  color: #fff;
+}

@@ -78,14 +78,16 @@ const getAdminStats = `-- name: GetAdminStats :one
 SELECT (SELECT count(*) FROM loans WHERE returned_at IS NULL)::integer AS open_loans,
        (SELECT count(*) FROM books)::integer AS books,
        (SELECT count(*) FROM books WHERE is_lost)::integer AS lost_books,
-       (SELECT count(*) FROM users WHERE NOT is_admin)::integer AS users
+       (SELECT count(*) FROM users WHERE NOT is_admin)::integer AS users,
+       (SELECT count(*) FROM book_requests WHERE purchased_at IS NULL)::integer AS open_book_requests
 `
 
 type GetAdminStatsRow struct {
-	OpenLoans int32
-	Books     int32
-	LostBooks int32
-	Users     int32
+	OpenLoans        int32
+	Books            int32
+	LostBooks        int32
+	Users            int32
+	OpenBookRequests int32
 }
 
 func (q *Queries) GetAdminStats(ctx context.Context) (GetAdminStatsRow, error) {
@@ -96,6 +98,7 @@ func (q *Queries) GetAdminStats(ctx context.Context) (GetAdminStatsRow, error) {
 		&i.Books,
 		&i.LostBooks,
 		&i.Users,
+		&i.OpenBookRequests,
 	)
 	return i, err
 }

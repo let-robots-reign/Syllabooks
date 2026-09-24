@@ -2,7 +2,8 @@
 SELECT (SELECT count(*) FROM loans WHERE returned_at IS NULL)::integer AS open_loans,
        (SELECT count(*) FROM books)::integer AS books,
        (SELECT count(*) FROM books WHERE is_lost)::integer AS lost_books,
-       (SELECT count(*) FROM users WHERE NOT is_admin)::integer AS users;
+       (SELECT count(*) FROM users WHERE NOT is_admin)::integer AS users,
+       (SELECT count(*) FROM book_requests WHERE purchased_at IS NULL)::integer AS open_book_requests;
 
 -- name: ListAdminOpenLoans :many
 SELECT l.id,

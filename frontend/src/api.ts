@@ -103,6 +103,7 @@ export type AdminStats = {
   books: number;
   lost_books: number;
   users: number;
+  open_book_requests: number;
 };
 
 export type AdminUserStatus = "approved" | "pending" | "banned";
@@ -181,6 +182,18 @@ export type AdminLostBook = {
 
 export type AdminLostBooksResponse = {
   books: AdminLostBook[];
+};
+
+export type AdminBookRequest = {
+  id: string;
+  title: string;
+  student: AdminLoanStudent;
+  created_at: string;
+  purchased_at: string | null;
+};
+
+export type AdminBookRequestsResponse = {
+  requests: AdminBookRequest[];
 };
 
 export type ReturnMethod = "scan" | "manual" | "skipped";

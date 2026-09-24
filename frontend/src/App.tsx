@@ -16,6 +16,7 @@ import {
 } from "./api.ts";
 import styles from "./App.module.scss";
 import { AdminBookForm } from "./admin/AdminBookForm.tsx";
+import { AdminBookRequests } from "./admin/AdminBookRequests.tsx";
 import { AdminBooks } from "./admin/AdminBooks.tsx";
 import { AdminLoans } from "./admin/AdminLoans.tsx";
 import { AdminLost } from "./admin/AdminLost.tsx";
@@ -148,6 +149,7 @@ function App() {
             <Route path="/admin/loans" element={<AdminLoans />} />
             <Route path="/admin/lost" element={<AdminLost />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/requests" element={<AdminBookRequests />} />
             <Route path="/admin/books" element={<AdminBooks />} />
             <Route path="/admin/books/new" element={<AdminBookForm />} />
             <Route path="/admin/books/:id" element={<AdminBookForm />} />

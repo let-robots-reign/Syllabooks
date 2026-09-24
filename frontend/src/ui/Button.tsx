@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import clsx from "clsx";
 import styles from "./Button.module.scss";
 import { Link } from "./Link.tsx";
@@ -31,7 +31,7 @@ export function Button({
   className,
   type = "button",
   ...rest
-}: Look & ButtonHTMLAttributes<HTMLButtonElement>) {
+}: Look & ComponentProps<"button">) {
   return (
     <button
       type={type}
