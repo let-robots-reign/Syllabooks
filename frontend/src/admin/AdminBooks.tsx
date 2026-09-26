@@ -205,6 +205,7 @@ export function AdminBooks() {
                 className={clsx(
                   styles.row,
                   !book.cover_url && styles.noCover,
+                  !book.is_active && styles.inactive,
                   draggedID === book.id && styles.dragging,
                 )}
                 key={book.id}
@@ -253,7 +254,12 @@ export function AdminBooks() {
                   )}
                 </div>
                 <div className={styles.bookCell}>
-                  <span className={styles.bookTitle}>{book.title}</span>
+                  <span className={styles.bookTitle}>
+                    {book.title}
+                    {!book.is_active && (
+                      <span className={styles.inactiveBadge}>скрыта</span>
+                    )}
+                  </span>
                   <span className={clsx(!book.cover_url && styles.missing)}>
                     {book.isbn ? `ISBN ${formatISBN(book.isbn)}` : "без ISBN"}
                     {!book.cover_url && " · нет обложки"}

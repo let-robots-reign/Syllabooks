@@ -106,7 +106,7 @@ func (q *Queries) CreateLoan(ctx context.Context, arg CreateLoanParams) (Loan, e
 }
 
 const getBookByISBN = `-- name: GetBookByISBN :one
-SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord, is_active
 FROM books
 WHERE isbn = $1
 `
@@ -128,6 +128,7 @@ func (q *Queries) GetBookByISBN(ctx context.Context, isbn *string) (Book, error)
 		&i.Description,
 		&i.LostAt,
 		&i.Ord,
+		&i.IsActive,
 	)
 	return i, err
 }

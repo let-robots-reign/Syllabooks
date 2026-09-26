@@ -45,6 +45,12 @@ SET cover_url = @cover_url
 WHERE id = @id
 RETURNING *;
 
+-- name: UpdateBookActive :one
+UPDATE books
+SET is_active = @is_active
+WHERE id = @id
+RETURNING *;
+
 -- name: DeleteBook :one
 DELETE FROM books
 WHERE id = @id

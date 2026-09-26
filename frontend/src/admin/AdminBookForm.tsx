@@ -50,6 +50,7 @@ export function AdminBookForm() {
   const [lookupCover, setLookupCover] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanAttempt, setScanAttempt] = useState(0);
   const [cameraFailure, setCameraFailure] = useState<CameraFailure | null>(
@@ -264,6 +265,25 @@ export function AdminBookForm() {
     }
   };
 
+  const toggleActive = async () => {
+    if (!book || togglingActive) return;
+    setTogglingActive(true);
+    setError(null);
+    try {
+      const updated = await api<Book>(`/admin/books/${book.id}/active`, {
+        method: "PUT",
+        body: { is_active: !book.is_active },
+      });
+      setBook((current) =>
+        current ? { ...current, is_active: updated.is_active } : current,
+      );
+    } catch (err) {
+      setError((err as ApiError).message);
+    } finally {
+      setTogglingActive(false);
+    }
+  };
+
   const removeBook = async () => {
     if (!book) return;
     setSaving(true);
@@ -294,6 +314,26 @@ export function AdminBookForm() {
           ← Каталог
         </Link>
         <div className={styles.toolbarActions}>
+          {book && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={book.is_active}
+              className={styles.activeSwitch}
+              disabled={togglingActive}
+              onClick={toggleActive}
+              title={
+                book.is_active
+                  ? "Книга видна ученикам в каталоге"
+                  : "Книга скрыта из каталога и не выдаётся"
+              }
+            >
+              <span className={styles.switchTrack} aria-hidden="true">
+                <span className={styles.switchThumb} />
+              </span>
+              {book.is_active ? "В каталоге" : "Скрыта"}
+            </button>
+          )}
           {!isNew && !confirmDelete && (
             <button
               className={styles.delete}

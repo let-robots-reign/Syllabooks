@@ -294,3 +294,53 @@ func containsBook(books []bookResponse, id uuid.UUID) bool {
 	}
 	return false
 }
+
+func TestAdminCanDeactivateBook(t *testing.T) {
+	env := newTestEnv(t, Server{})
+	adminID, adminCode := env.newCodeUser(t)
+	env.exec(t, "UPDATE users SET is_admin = true WHERE id = $1", adminID)
+	adminToken := env.login(t, adminCode, "учитель")
+	_, studentCode := env.newCodeUser(t)
+	studentToken := env.login(t, studentCode, "ученик")
+	book := newBorrowTestBook(t, env, randomTestISBN(), "Resting Book")
+	path := "/api/admin/books/" + book.ID.String() + "/active"
+
+	status, _ := bookRequest[map[string]any](t, env, http.MethodPut, path, studentToken, map[string]bool{"is_active": false})
+	if status != http.StatusNotFound {
+		t.Fatalf("student deactivate status = %d, want 404", status)
+	}
+
+	status, updated := bookRequest[bookResponse](t, env, http.MethodPut, path, adminToken, map[string]bool{"is_active": false})
+	if status != http.StatusOK || updated.IsActive {
+		t.Fatalf("deactivate: status=%d body=%+v", status, updated)
+	}
+
+	status, adminList := bookRequest[[]bookResponse](t, env, http.MethodGet, "/api/admin/books", adminToken, nil)
+	if status != http.StatusOK || !containsBook(adminList, book.ID) {
+		t.Fatalf("admin list should keep inactive book: status=%d", status)
+	}
+	type catalogPayload struct {
+		Books []bookResponse `json:"books"`
+	}
+	status, catalogue := bookRequest[catalogPayload](t, env, http.MethodGet, "/api/books", studentToken, nil)
+	if status != http.StatusOK || containsBook(catalogue.Books, book.ID) {
+		t.Fatalf("public catalogue should hide inactive book: status=%d", status)
+	}
+	status, _ = bookRequest[map[string]any](t, env, http.MethodGet, "/api/books/"+book.ID.String(), studentToken, nil)
+	if status != http.StatusNotFound {
+		t.Fatalf("inactive book detail status = %d, want 404", status)
+	}
+	status, borrow := bookRequest[borrowErrorResponse](t, env, http.MethodPost, "/api/loans", studentToken, map[string]string{"isbn": *book.Isbn})
+	if status != http.StatusConflict || borrow.Code != "book_inactive" {
+		t.Fatalf("borrow inactive book: status=%d body=%+v", status, borrow)
+	}
+
+	status, updated = bookRequest[bookResponse](t, env, http.MethodPut, path, adminToken, map[string]bool{"is_active": true})
+	if status != http.StatusOK || !updated.IsActive {
+		t.Fatalf("reactivate: status=%d body=%+v", status, updated)
+	}
+	status, catalogue = bookRequest[catalogPayload](t, env, http.MethodGet, "/api/books", studentToken, nil)
+	if status != http.StatusOK || !containsBook(catalogue.Books, book.ID) {
+		t.Fatalf("public catalogue should show reactivated book: status=%d", status)
+	}
+}

@@ -20,6 +20,7 @@ export type Book = {
   description: string | null;
   cover_url: string | null;
   ord: number;
+  is_active: boolean;
 };
 
 export type CatalogBook = Book & {
@@ -207,6 +208,7 @@ export type BorrowErrorCode =
   | "invalid_isbn"
   | "book_not_found"
   | "book_lost"
+  | "book_inactive"
   | "book_unavailable"
   | "loan_limit"
   | "no_open_loan"

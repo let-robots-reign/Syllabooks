@@ -26,6 +26,7 @@ type bookResponse struct {
 	Description *string       `json:"description"`
 	CoverURL    *string       `json:"cover_url"`
 	Ord         int32         `json:"ord"`
+	IsActive    bool          `json:"is_active"`
 }
 
 type bookInput struct {
@@ -57,6 +58,7 @@ func presentBook(book gen.Book) bookResponse {
 		Description: book.Description,
 		CoverURL:    book.CoverUrl,
 		Ord:         book.Ord,
+		IsActive:    book.IsActive,
 	}
 }
 
@@ -237,6 +239,31 @@ func (s *Server) updateBook(w http.ResponseWriter, r *http.Request, _ gen.User) 
 	}
 	if err != nil {
 		writeBookDBError(w, r, "update book", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, presentBook(updated))
+}
+
+func (s *Server) setBookActive(w http.ResponseWriter, r *http.Request, _ gen.User) {
+	id, ok := bookID(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		IsActive bool `json:"is_active"`
+	}
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	updated, err := gen.New(s.Pool).UpdateBookActive(r.Context(), gen.UpdateBookActiveParams{
+		IsActive: input.IsActive, ID: id,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		serverError(w, r, fmt.Errorf("set book active: %w", err))
 		return
 	}
 	writeJSON(w, http.StatusOK, presentBook(updated))

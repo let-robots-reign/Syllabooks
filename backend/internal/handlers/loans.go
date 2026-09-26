@@ -63,6 +63,12 @@ func (s *Server) borrowBook(w http.ResponseWriter, r *http.Request, user gen.Use
 			"Эта книга отмечена как потерянная. Обратись к учителю.", &presented, "", nil)
 		return
 	}
+	if !book.IsActive {
+		presented := presentBook(book)
+		writeBorrowError(w, http.StatusConflict, "book_inactive",
+			"Эта книга сейчас не выдаётся. Обратись к учителю.", &presented, "", nil)
+		return
+	}
 
 	// This early lookup provides a useful conflict response. The database
 	// indexes remain the authority when two requests race after this check.

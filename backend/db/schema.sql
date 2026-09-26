@@ -42,6 +42,7 @@ CREATE TABLE public.books (
     description text,
     lost_at timestamp with time zone,
     ord integer NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
     CONSTRAINT books_description_length CHECK ((char_length(description) <= 240)),
     CONSTRAINT books_isbn_check CHECK ((isbn ~ '^[0-9]{13}$'::text)),
     CONSTRAINT books_lost_state CHECK ((is_lost = (lost_at IS NOT NULL))),

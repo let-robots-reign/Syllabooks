@@ -14,7 +14,7 @@ import (
 const createBook = `-- name: CreateBook :one
 INSERT INTO books (isbn, title, author, level, page_count, description)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord, is_active
 `
 
 type CreateBookParams struct {
@@ -50,6 +50,7 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		&i.Description,
 		&i.LostAt,
 		&i.Ord,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -68,7 +69,7 @@ func (q *Queries) DeleteBook(ctx context.Context, id uuid.UUID) (*string, error)
 }
 
 const getBook = `-- name: GetBook :one
-SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord, is_active
 FROM books
 WHERE id = $1
 `
@@ -90,6 +91,7 @@ func (q *Queries) GetBook(ctx context.Context, id uuid.UUID) (Book, error) {
 		&i.Description,
 		&i.LostAt,
 		&i.Ord,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -122,7 +124,7 @@ func (q *Queries) ListBookIDsForUpdate(ctx context.Context) ([]uuid.UUID, error)
 }
 
 const listBooks = `-- name: ListBooks :many
-SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
+SELECT id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord, is_active
 FROM books
 ORDER BY ord, id
 `
@@ -150,6 +152,7 @@ func (q *Queries) ListBooks(ctx context.Context) ([]Book, error) {
 			&i.Description,
 			&i.LostAt,
 			&i.Ord,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -170,7 +173,7 @@ SET isbn = $1,
     page_count = $5,
     description = $6
 WHERE id = $7
-RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord, is_active
 `
 
 type UpdateBookParams struct {
@@ -208,6 +211,41 @@ func (q *Queries) UpdateBook(ctx context.Context, arg UpdateBookParams) (Book, e
 		&i.Description,
 		&i.LostAt,
 		&i.Ord,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const updateBookActive = `-- name: UpdateBookActive :one
+UPDATE books
+SET is_active = $1
+WHERE id = $2
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord, is_active
+`
+
+type UpdateBookActiveParams struct {
+	IsActive bool
+	ID       uuid.UUID
+}
+
+func (q *Queries) UpdateBookActive(ctx context.Context, arg UpdateBookActiveParams) (Book, error) {
+	row := q.db.QueryRow(ctx, updateBookActive, arg.IsActive, arg.ID)
+	var i Book
+	err := row.Scan(
+		&i.ID,
+		&i.Isbn,
+		&i.Title,
+		&i.Author,
+		&i.Level,
+		&i.PageCount,
+		&i.CoverUrl,
+		&i.IsLost,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.Description,
+		&i.LostAt,
+		&i.Ord,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -216,7 +254,7 @@ const updateBookCover = `-- name: UpdateBookCover :one
 UPDATE books
 SET cover_url = $1
 WHERE id = $2
-RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord
+RETURNING id, isbn, title, author, level, page_count, cover_url, is_lost, notes, created_at, description, lost_at, ord, is_active
 `
 
 type UpdateBookCoverParams struct {
@@ -241,6 +279,7 @@ func (q *Queries) UpdateBookCover(ctx context.Context, arg UpdateBookCoverParams
 		&i.Description,
 		&i.LostAt,
 		&i.Ord,
+		&i.IsActive,
 	)
 	return i, err
 }

@@ -187,6 +187,7 @@ type Book struct {
 	Description *string
 	LostAt      *time.Time
 	Ord         int32
+	IsActive    bool
 }
 
 type BookRequest struct {

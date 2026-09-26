@@ -640,6 +640,13 @@ function BorrowErrorScreen({
       : "Книга отмечена как потерянная";
     lead = "Обратись к учителю: возможно, статус книги нужно исправить.";
     actions = <ButtonLink href="/">Вернуться в каталог</ButtonLink>;
+  } else if (error.code === "book_inactive") {
+    eyebrow = "Книга не выдаётся";
+    title = error.book
+      ? `${error.book.title} сейчас не выдаётся`
+      : "Эта книга сейчас не выдаётся";
+    lead = "Учитель убрал её из каталога. Выбери другую книгу на полке.";
+    actions = <ButtonLink href="/">Вернуться в каталог</ButtonLink>;
   } else if (error.status === 0) {
     eyebrow = "Нет связи с сервером";
     title = "Не удалось получить подтверждение";

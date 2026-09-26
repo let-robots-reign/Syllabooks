@@ -13,7 +13,7 @@ SELECT b.id,
 FROM books b
 LEFT JOIN loans l ON l.book_id = b.id AND l.returned_at IS NULL
 LEFT JOIN users u ON u.id = l.user_id
-WHERE NOT b.is_lost
+WHERE NOT b.is_lost AND b.is_active
 ORDER BY b.ord, b.id;
 
 -- name: GetCatalogBook :one
@@ -31,7 +31,7 @@ SELECT b.id,
 FROM books b
 LEFT JOIN loans l ON l.book_id = b.id AND l.returned_at IS NULL
 LEFT JOIN users u ON u.id = l.user_id
-WHERE b.id = @id AND NOT b.is_lost;
+WHERE b.id = @id AND NOT b.is_lost AND b.is_active;
 
 -- name: CountFinishedBooks :one
 SELECT count(*)

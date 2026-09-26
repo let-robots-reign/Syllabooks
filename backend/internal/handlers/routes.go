@@ -67,6 +67,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/admin/books/{id}", s.requireAdmin(s.getBook))
 	mux.HandleFunc("PUT /api/admin/books/{id}", s.requireAdmin(s.updateBook))
 	mux.HandleFunc("DELETE /api/admin/books/{id}", s.requireAdmin(s.deleteBook))
+	mux.HandleFunc("PUT /api/admin/books/{id}/active", s.requireAdmin(s.setBookActive))
 	mux.HandleFunc("PUT /api/admin/books/{id}/cover", s.requireAdmin(s.uploadBookCover))
 	mux.HandleFunc("DELETE /api/admin/books/{id}/cover", s.requireAdmin(s.deleteBookCover))
 	mux.HandleFunc("POST /api/admin/books/{id}/found", s.requireAdmin(s.markAdminBookFound))
