@@ -124,7 +124,7 @@ export function Home({ me }: { me: Me }) {
     <>
       <Header name={me.display_name} isAdmin={me.is_admin} />
       <section className={styles.page}>
-        {!!finishedCount && (
+        {finishedCount && finishedCount >= 3 && (
           <div className={styles.counter}>
             <div className={styles.eyebrow}>Общий счёт</div>
             <div className={styles.counterTitle}>

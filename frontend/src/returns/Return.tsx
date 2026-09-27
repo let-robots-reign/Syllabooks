@@ -793,7 +793,7 @@ function CelebrationScreen({
         <section className={styles.achievement}>
           <h2>
             {celebration.is_first_book
-              ? "Твоя первая книга на английском — так держать!."
+              ? "Твоя первая книга на английском — так держать!"
               : "Ещё одна книга на английском — ты молодец!"}
           </h2>
           <p>
